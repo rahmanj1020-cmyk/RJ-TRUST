@@ -16,49 +16,24 @@ import {
   Link as LinkIcon,
   Share2,
   Users,
-  HardDrive,
-  Mail,
-  ExternalLink,
-  ShieldCheck,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { SUPPORT_CONFIG } from '../data/constants';
-import { getCachedGoogleUser, getWorkspaceAccessToken, initWorkspaceAuth } from '../lib/googleWorkspace';
 
 interface AccountTabProps {
   onOpenDeposit: () => void;
   onOpenWithdraw: () => void;
   onOpenChangePassword: () => void;
-  onOpenWorkspace?: (tab: 'drive' | 'gmail') => void;
 }
 
 export const AccountTab: React.FC<AccountTabProps> = ({
   onOpenDeposit,
   onOpenWithdraw,
   onOpenChangePassword,
-  onOpenWorkspace,
 }) => {
   const { currentUser, logout, t, lang, setActiveTab, showToast } = useApp();
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [googleUser, setGoogleUser] = useState<any>(getCachedGoogleUser());
-  const [hasGoogleToken, setHasGoogleToken] = useState<boolean>(!!getWorkspaceAccessToken());
-
-  useEffect(() => {
-    const unsub = initWorkspaceAuth(
-      (user, token) => {
-        setGoogleUser(user);
-        setHasGoogleToken(!!token);
-      },
-      () => {
-        setGoogleUser(null);
-        setHasGoogleToken(false);
-      }
-    );
-    return () => {
-      if (unsub) unsub();
-    };
-  }, []);
 
   if (!currentUser) return null;
 
@@ -178,96 +153,8 @@ export const AccountTab: React.FC<AccountTabProps> = ({
         </div>
       </div>
 
-      {/* Google Workspace Integration Hub Card */}
-      <div className="rounded-3xl bg-gradient-to-br from-[#0d1b38] via-[#14213D] to-black border-2 border-emerald-500/40 p-5 shadow-2xl relative overflow-hidden">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="font-black text-sm text-white flex items-center gap-2">
-                <span>Google Workspace Hub</span>
-                <span className="text-[9px] font-bold px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400">
-                  {hasGoogleToken ? 'Connected' : 'Drive & Gmail'}
-                </span>
-              </h4>
-              <p className="text-[11px] text-[#B0BBD4]">
-                {hasGoogleToken && googleUser?.email
-                  ? `Linked to ${googleUser.email}`
-                  : 'Backup portfolio to Drive & send statements via Gmail'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5 pt-1">
-          <button
-            onClick={() => onOpenWorkspace && onOpenWorkspace('drive')}
-            className="p-3 rounded-2xl bg-black/50 hover:bg-black/70 border border-white/10 hover:border-amber-400/50 flex items-center gap-2.5 transition-all text-left group"
-          >
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-[#FCA311] flex items-center justify-center shrink-0">
-              <HardDrive className="w-4 h-4" />
-            </div>
-            <div className="overflow-hidden">
-              <div className="text-xs font-bold text-white group-hover:text-[#FCA311] truncate">Google Drive</div>
-              <div className="text-[10px] text-[#B0BBD4] truncate">Save & View Statements</div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => onOpenWorkspace && onOpenWorkspace('gmail')}
-            className="p-3 rounded-2xl bg-black/50 hover:bg-black/70 border border-white/10 hover:border-blue-400/50 flex items-center gap-2.5 transition-all text-left group"
-          >
-            <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
-              <Mail className="w-4 h-4" />
-            </div>
-            <div className="overflow-hidden">
-              <div className="text-xs font-bold text-white group-hover:text-blue-300 truncate">Gmail Service</div>
-              <div className="text-[10px] text-[#B0BBD4] truncate">Send & View Emails</div>
-            </div>
-          </button>
-        </div>
-      </div>
-
       {/* Action Menu List */}
       <div className="rounded-2xl bg-[#14213D] border border-[#2A3A5C] divide-y divide-white/5 shadow-xl overflow-hidden">
-        <button
-          onClick={() => onOpenWorkspace && onOpenWorkspace('drive')}
-          className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all text-left group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-[#FCA311] flex items-center justify-center">
-              <HardDrive className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-xs md:text-sm font-bold text-white group-hover:text-[#FCA311] block">
-                Google Drive Storage
-              </span>
-              <span className="text-[10px] text-[#B0BBD4]">Export & organize statements in Google Drive</span>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-white" />
-        </button>
-
-        <button
-          onClick={() => onOpenWorkspace && onOpenWorkspace('gmail')}
-          className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all text-left group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center">
-              <Mail className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-xs md:text-sm font-bold text-white group-hover:text-blue-300 block">
-                Gmail Dispatch & Reports
-              </span>
-              <span className="text-[10px] text-[#B0BBD4]">Send certified financial reports via your Gmail</span>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-white" />
-        </button>
-
         <button
           onClick={onOpenDeposit}
           className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all text-left group"

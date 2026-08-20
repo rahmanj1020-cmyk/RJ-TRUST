@@ -16,9 +16,6 @@ import {
   Copy,
   Check,
   Share2,
-  HardDrive,
-  Mail,
-  ShieldCheck,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { RJ_PLANS } from '../data/constants';
@@ -26,10 +23,9 @@ import { RJ_PLANS } from '../data/constants';
 interface HomeTabProps {
   onOpenDeposit: () => void;
   onOpenWithdraw: () => void;
-  onOpenWorkspace?: (tab: 'drive' | 'gmail') => void;
 }
 
-export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw, onOpenWorkspace }) => {
+export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw }) => {
   const { currentUser, transactions, t, lang, claimDailyIncome, setActiveTab, showToast } = useApp();
   const [now, setNow] = useState(Date.now());
   const [copiedLink, setCopiedLink] = useState(false);
@@ -393,44 +389,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw,
           >
             {copiedLink ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
             <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Google Workspace Drive & Gmail Cloud Hub Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#0d1b38] via-[#101f42] to-black border border-emerald-500/40 p-3.5 shadow-lg flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black text-white">Google Drive & Gmail Hub</span>
-              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                Official Google
-              </span>
-            </div>
-            <p className="text-[10px] text-[#B0BBD4] mt-0.5">
-              Save investment receipts to Google Drive & dispatch certified reports via Gmail
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onOpenWorkspace && onOpenWorkspace('drive')}
-            className="py-1.5 px-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-[#FCA311] font-bold text-[11px] flex items-center gap-1 transition-all"
-          >
-            <HardDrive className="w-3.5 h-3.5" />
-            <span>Google Drive</span>
-          </button>
-
-          <button
-            onClick={() => onOpenWorkspace && onOpenWorkspace('gmail')}
-            className="py-1.5 px-2.5 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-400 font-bold text-[11px] flex items-center gap-1 transition-all"
-          >
-            <Mail className="w-3.5 h-3.5" />
-            <span>Gmail</span>
           </button>
         </div>
       </div>

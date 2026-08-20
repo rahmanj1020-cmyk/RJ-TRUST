@@ -23,7 +23,6 @@ import { SupportChatModal } from './components/SupportChatModal';
 import { ForgotPasswordModal } from './components/ForgotPasswordModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
-import { GoogleWorkspaceModal } from './components/GoogleWorkspaceModal';
 import { InvestmentPlan } from './types';
 
 const MainLayout: React.FC = () => {
@@ -37,13 +36,6 @@ const MainLayout: React.FC = () => {
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
-  const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
-  const [workspaceDefaultTab, setWorkspaceDefaultTab] = useState<'drive' | 'gmail'>('drive');
-
-  const handleOpenWorkspace = (tab: 'drive' | 'gmail') => {
-    setWorkspaceDefaultTab(tab);
-    setWorkspaceModalOpen(true);
-  };
 
   // If user is not logged in and not in admin mode, show Auth Screen
   if (!currentUser && !isAdminLoggedIn) {
@@ -82,7 +74,6 @@ const MainLayout: React.FC = () => {
           <HomeTab
             onOpenDeposit={() => setDepositOpen(true)}
             onOpenWithdraw={() => setWithdrawOpen(true)}
-            onOpenWorkspace={handleOpenWorkspace}
           />
         )}
 
@@ -103,7 +94,6 @@ const MainLayout: React.FC = () => {
             onOpenDeposit={() => setDepositOpen(true)}
             onOpenWithdraw={() => setWithdrawOpen(true)}
             onOpenChangePassword={() => setChangePasswordOpen(true)}
-            onOpenWorkspace={handleOpenWorkspace}
           />
         )}
 
@@ -156,12 +146,6 @@ const MainLayout: React.FC = () => {
       <AdminLoginModal
         isOpen={adminLoginOpen}
         onClose={() => setAdminLoginOpen(false)}
-      />
-
-      <GoogleWorkspaceModal
-        isOpen={workspaceModalOpen}
-        onClose={() => setWorkspaceModalOpen(false)}
-        defaultTab={workspaceDefaultTab}
       />
     </div>
   );

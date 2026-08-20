@@ -1,0 +1,6 @@
+{
+  "name": "RJ TRUST",
+  "description": "RJ TRUST - Premium Financial Investment, VIP Plans, Price Bonds, Deposit & Withdrawal Platform with User & Admin Dashboards (TRUST • GROW • INFINITE)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

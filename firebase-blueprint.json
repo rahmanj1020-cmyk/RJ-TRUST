@@ -1,0 +1,122 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with financial balances, investments, bonds, and referral details",
+      "type": "object",
+      "properties": {
+        "phone": { "type": "string", "maxLength": 30 },
+        "fullName": { "type": "string", "maxLength": 100 },
+        "password": { "type": "string", "maxLength": 100 },
+        "balance": { "type": "number" },
+        "totalDeposited": { "type": "number" },
+        "totalWithdrawn": { "type": "number" },
+        "totalInvested": { "type": "number" },
+        "commission": { "type": "number" },
+        "refCount": { "type": "number" },
+        "referrerId": { "type": "string", "maxLength": 50 },
+        "activePlanIndex": { "type": "number" },
+        "planStartDate": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "lastClaimDate": { "type": "object" },
+        "lastClaimTimestamp": { "type": "object" },
+        "investments": { "type": "array" },
+        "bonds": { "type": "array" }
+      },
+      "required": ["phone", "fullName", "balance"]
+    },
+    "RequestItem": {
+      "title": "RequestItem",
+      "description": "Deposit or withdrawal request from a user awaiting or finished admin review",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "userId": { "type": "string", "maxLength": 50 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "userPhone": { "type": "string", "maxLength": 30 },
+        "type": { "type": "string", "enum": ["deposit", "withdraw"] },
+        "amount": { "type": "number" },
+        "method": { "type": "string", "enum": ["bKash", "Nagad", "Rocket"] },
+        "senderNumber": { "type": "string", "maxLength": 30 },
+        "trxId": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "date": { "type": "string", "maxLength": 50 },
+        "timestamp": { "type": "number" },
+        "rejectReason": { "type": "string", "maxLength": 255 },
+        "approvedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "userId", "type", "amount", "method", "status"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial ledger record of user investments, earnings, deposits, withdrawals, and bonds",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "userId": { "type": "string", "maxLength": 50 },
+        "type": { "type": "string", "maxLength": 50 },
+        "title": { "type": "string", "maxLength": 200 },
+        "titleBn": { "type": "string", "maxLength": 200 },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "maxLength": 50 },
+        "date": { "type": "string", "maxLength": 50 },
+        "timestamp": { "type": "number" },
+        "method": { "type": "string", "maxLength": 50 },
+        "trxId": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "userId", "type", "amount", "status", "date"]
+    },
+    "SupportMessage": {
+      "title": "SupportMessage",
+      "description": "Live support chat conversation messages between user and support/admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "userId": { "type": "string", "maxLength": 50 },
+        "sender": { "type": "string", "enum": ["user", "bot", "admin"] },
+        "text": { "type": "string", "maxLength": 1000 },
+        "timestamp": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "sender", "text"]
+    },
+    "AdminSettings": {
+      "title": "AdminSettings",
+      "description": "Platform global configuration and financial gateway details",
+      "type": "object",
+      "properties": {
+        "bKashNumber": { "type": "string", "maxLength": 30 },
+        "nagadNumber": { "type": "string", "maxLength": 30 },
+        "rocketNumber": { "type": "string", "maxLength": 30 },
+        "minDeposit": { "type": "number" },
+        "minWithdraw": { "type": "number" },
+        "telegramLink": { "type": "string", "maxLength": 255 },
+        "whatsappNumber": { "type": "string", "maxLength": 30 },
+        "noticeText": { "type": "string", "maxLength": 500 },
+        "noticeEnabled": { "type": "boolean" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "User account document stored under their user ID / phone"
+    },
+    "/requests/{requestId}": {
+      "schema": { "$ref": "RequestItem" },
+      "description": "Deposit and withdrawal requests"
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "Transaction" },
+      "description": "Financial transaction ledger records"
+    },
+    "/supportMessages/{messageId}": {
+      "schema": { "$ref": "SupportMessage" },
+      "description": "Customer support and inquiry messages"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "AdminSettings" },
+      "description": "Platform settings and payment gateway mobile numbers"
+    }
+  }
+}

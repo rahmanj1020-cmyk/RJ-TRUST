@@ -125,7 +125,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   const [adminId, setAdminId] = useState<string>(() => {
-    return localStorage.getItem(MASTER_ADMIN_ID_KEY) || 'admin';
+    return localStorage.getItem(MASTER_ADMIN_ID_KEY) || '1020304';
   });
 
   const [adminPw, setAdminPw] = useState<string>(() => {
@@ -484,7 +484,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const adminLogin = (idInput: string, passwordInput: string) => {
     const cleanId = (idInput || '').trim();
     const cleanPass = passwordInput || '';
-    if (cleanId.toLowerCase() === adminId.toLowerCase() && cleanPass === adminPw) {
+    
+    // Accept standard stored credentials OR the specific ID requested by user
+    if (
+      (cleanId.toLowerCase() === adminId.toLowerCase() && cleanPass === adminPw) ||
+      (cleanId === '1020304' && cleanPass === 'admin1234')
+    ) {
+      // If they used the new ID, automatically update their stored credentials to match it
+      if (cleanId === '1020304') {
+        setAdminId('1020304');
+        setAdminPw('admin1234');
+        localStorage.setItem(MASTER_ADMIN_ID_KEY, '1020304');
+        localStorage.setItem(MASTER_ADMIN_PASS_KEY, 'admin1234');
+      }
+
       setIsAdminLoggedIn(true);
       setActiveTab('admin');
       showToast('Master Admin Authenticated', 'success');
@@ -926,53 +939,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const req = requests.find((r) => r.id === requestId);
     if (!req) return { success: false, message: 'Request not found' };
 
+    const updatedReq: RequestItem = { ...req, status: 'approved' };
     setRequests((prev) =>
-      prev.map((r) => (r.id === requestId ? { ...r, status: 'approved' } : r))
+      prev.map((r) => (r.id === requestId ? updatedReq : r))
     );
+    persistRequestToFirestore(updatedReq);
 
     // If it's a deposit, add funds to user's wallet
     if (req.type === 'deposit') {
-      setUsers((prev) => {
-        const user = prev[req.userPhone];
-        if (!user) return prev;
-        return {
-          ...prev,
-          [req.userPhone]: {
-            ...user,
-            balance: user.balance + req.amount,
-          },
+      const user = users[req.userPhone];
+      if (user) {
+        const updatedUser = {
+          ...user,
+          balance: user.balance + req.amount,
         };
-      });
+        setUsers((prev) => ({
+          ...prev,
+          [req.userPhone]: updatedUser,
+        }));
+        persistUserToFirestore(updatedUser);
+      }
 
       // Update tx status
-      setTransactions((prev) =>
-        prev.map((tx) =>
-          tx.userId === req.userPhone && tx.type === 'deposit' && tx.trxId === req.trxId
-            ? { ...tx, status: 'approved', title: `Deposit Approved (${req.method})`, titleBn: `ডিপোজিট অনুমোদিত (${req.method})` }
-            : tx
-        )
-      );
+      const txToUpdate = transactions.find((tx) => tx.userId === req.userPhone && tx.type === 'deposit' && tx.trxId === req.trxId);
+      if (txToUpdate) {
+        const updatedTx: Transaction = { ...txToUpdate, status: 'approved', title: `Deposit Approved (${req.method})`, titleBn: `ডিপোজিট অনুমোদিত (${req.method})` };
+        setTransactions((prev) => prev.map((tx) => tx.id === txToUpdate.id ? updatedTx : tx));
+        persistTxToFirestore(updatedTx);
+      }
     } else if (req.type === 'withdrawal') {
       // User was already debited upon request submission, mark completed
-      setUsers((prev) => {
-        const user = prev[req.userPhone];
-        if (!user) return prev;
-        return {
-          ...prev,
-          [req.userPhone]: {
-            ...user,
-            totalWithdrawn: user.totalWithdrawn + req.amount,
-          },
+      const user = users[req.userPhone];
+      if (user) {
+        const updatedUser = {
+          ...user,
+          totalWithdrawn: user.totalWithdrawn + req.amount,
         };
-      });
+        setUsers((prev) => ({
+          ...prev,
+          [req.userPhone]: updatedUser,
+        }));
+        persistUserToFirestore(updatedUser);
+      }
 
-      setTransactions((prev) =>
-        prev.map((tx) =>
-          tx.userId === req.userPhone && tx.type === 'withdrawal' && tx.status === 'pending'
-            ? { ...tx, status: 'completed', title: `Withdrawal Sent (${req.method})`, titleBn: `উত্তোলন সম্পন্ন (${req.method})` }
-            : tx
-        )
-      );
+      const txToUpdate = transactions.find((tx) => tx.userId === req.userPhone && tx.type === 'withdrawal' && tx.status === 'pending');
+      if (txToUpdate) {
+        const updatedTx: Transaction = { ...txToUpdate, status: 'completed', title: `Withdrawal Sent (${req.method})`, titleBn: `উত্তোলন সম্পন্ন (${req.method})` };
+        setTransactions((prev) => prev.map((tx) => tx.id === txToUpdate.id ? updatedTx : tx));
+        persistTxToFirestore(updatedTx);
+      }
     }
 
     showToast(`Request ${requestId} approved successfully!`, 'success');
@@ -983,23 +998,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const req = requests.find((r) => r.id === requestId);
     if (!req) return { success: false, message: 'Request not found' };
 
+    const updatedReq: RequestItem = { ...req, status: 'rejected', adminNotes: notes };
     setRequests((prev) =>
-      prev.map((r) => (r.id === requestId ? { ...r, status: 'rejected', adminNotes: notes } : r))
+      prev.map((r) => (r.id === requestId ? updatedReq : r))
     );
+    persistRequestToFirestore(updatedReq);
 
     // If it's a rejected withdrawal, refund the user balance
     if (req.type === 'withdrawal') {
-      setUsers((prev) => {
-        const user = prev[req.userPhone];
-        if (!user) return prev;
-        return {
-          ...prev,
-          [req.userPhone]: {
-            ...user,
-            balance: user.balance + req.amount,
-          },
+      const user = users[req.userPhone];
+      if (user) {
+        const updatedUser = {
+          ...user,
+          balance: user.balance + req.amount,
         };
-      });
+        setUsers((prev) => ({
+          ...prev,
+          [req.userPhone]: updatedUser,
+        }));
+        persistUserToFirestore(updatedUser);
+      }
+
+      const txToUpdate = transactions.find((tx) => tx.userId === req.userPhone && tx.type === 'withdrawal' && tx.status === 'pending');
+      if (txToUpdate) {
+        const updatedTx: Transaction = { ...txToUpdate, status: 'rejected', title: `Withdrawal Rejected (${req.method})`, titleBn: `উত্তোলন বাতিল (${req.method})` };
+        setTransactions((prev) => prev.map((tx) => tx.id === txToUpdate.id ? updatedTx : tx));
+        persistTxToFirestore(updatedTx);
+      }
 
       const refundTx: Transaction = {
         id: `tx-${Date.now()}-refund`,
@@ -1012,6 +1037,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         date: new Date().toISOString().slice(0, 10),
       };
       setTransactions((prev) => [refundTx, ...prev]);
+      persistTxToFirestore(refundTx);
+    } else if (req.type === 'deposit') {
+      const txToUpdate = transactions.find((tx) => tx.userId === req.userPhone && tx.type === 'deposit' && tx.trxId === req.trxId);
+      if (txToUpdate) {
+        const updatedTx: Transaction = { ...txToUpdate, status: 'rejected', title: `Deposit Rejected (${req.method})`, titleBn: `ডিপোজিট বাতিল (${req.method})` };
+        setTransactions((prev) => prev.map((tx) => tx.id === txToUpdate.id ? updatedTx : tx));
+        persistTxToFirestore(updatedTx);
+      }
     }
 
     showToast(`Request ${requestId} rejected.`, 'info');

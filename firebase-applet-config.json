@@ -3,6 +3,7 @@
   "appId": "1:403912060220:web:89dbd4757530c115e68239",
   "apiKey": "AIzaSyClRttXpBqlU6pfJl6DzUAwatDbXPvhnEI",
   "authDomain": "mimetic-phenomenon-9f6jr.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-rjtrust-b0b9a339-e35d-49b9-9fde-d4df4e7d52b4",
   "storageBucket": "mimetic-phenomenon-9f6jr.firebasestorage.app",
   "messagingSenderId": "403912060220",
   "measurementId": "",

@@ -593,8 +593,17 @@ const deleteUserFromFirestore = async (phone: string) => {
     try {
       const snap = await getDocFromServer(doc(db, 'settings', 'adminCredentials'));
       if (snap.exists()) {
-        currentAdminId = snap.data().adminId || currentAdminId;
-        currentAdminPw = snap.data().adminPw || currentAdminPw;
+        const data = snap.data();
+        if (data.adminId) {
+          currentAdminId = data.adminId;
+          setAdminId(data.adminId);
+          localStorage.setItem(MASTER_ADMIN_ID_KEY, data.adminId);
+        }
+        if (data.adminPw) {
+          currentAdminPw = data.adminPw;
+          setAdminPw(data.adminPw);
+          localStorage.setItem(MASTER_ADMIN_PASS_KEY, data.adminPw);
+        }
       }
     } catch(e) {
       console.warn("Could not fetch admin credentials on login", e);

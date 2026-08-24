@@ -8,6 +8,7 @@ import {
   Check,
   Sparkles,
   TrendingUp,
+  Calculator,
   ArrowRight,
   Shield,
   Link as LinkIcon,
@@ -34,6 +35,17 @@ export const InvestTab: React.FC<InvestTabProps> = ({ onSelectPlan }) => {
   const [copiedCode, setCopiedCode] = useState(false);
   const [showQrCode, setShowQrCode] = useState(false);
   const [activeTierView, setActiveTierView] = useState<1 | 2 | 3>(1);
+
+  // Profit Calculator State
+  const [calcAmount, setCalcAmount] = useState<number | string>(300);
+  const [calcPlanId, setCalcPlanId] = useState<number>(RJ_PLANS[0].id);
+
+  const selectedCalcPlan = RJ_PLANS.find(p => p.id === calcPlanId) || RJ_PLANS[0];
+  const dailyPercent = selectedCalcPlan.dailyIncome / selectedCalcPlan.investAmount;
+  const calcDaily = (Number(calcAmount) || 0) * dailyPercent;
+  const calcWeekly = calcDaily * 7;
+  const calcMonthly = calcDaily * 30;
+
 
   if (!currentUser) return null;
 
@@ -385,6 +397,76 @@ export const InvestTab: React.FC<InvestTabProps> = ({ onSelectPlan }) => {
           )}
         </div>
       </div>
+
+      
+      {/* Interactive Profit Calculator */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-3xl bg-[#14213D] border border-[#2A3A5C] p-5 shadow-lg relative overflow-hidden"
+      >
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+            <Calculator className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="font-bold text-white text-sm">Profit Calculator</h3>
+            <p className="text-[10px] text-[#B0BBD4]">Estimate your potential earnings</p>
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-bold text-[#B0BBD4] mb-1.5 uppercase tracking-wider">Select Plan Base</label>
+              <select
+                value={calcPlanId}
+                onChange={(e) => {
+                  const pid = Number(e.target.value);
+                  setCalcPlanId(pid);
+                  const p = RJ_PLANS.find(x => x.id === pid);
+                  if (p) setCalcAmount(p.investAmount);
+                }}
+                className="w-full bg-[#0A1128] border border-[#2A3A5C] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500 transition-all appearance-none"
+              >
+                {RJ_PLANS.map(plan => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name} - {(plan.dailyIncome / plan.investAmount * 100).toFixed(1)}% Daily
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-[#B0BBD4] mb-1.5 uppercase tracking-wider">Investment Amount (৳)</label>
+              <input
+                type="number"
+                value={calcAmount}
+                onChange={(e) => setCalcAmount(e.target.value)}
+                placeholder="e.g. 1000"
+                className="w-full bg-[#0A1128] border border-[#2A3A5C] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500 transition-all"
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-2 text-center mt-2">
+            <div className="bg-[#0A1128] p-3 rounded-xl border border-[#2A3A5C]/50 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-green-500/5 group-hover:bg-green-500/10 transition-colors"></div>
+              <div className="text-[10px] text-[#B0BBD4] mb-1 font-medium relative z-10">Daily Return</div>
+              <div className="text-sm md:text-base font-black text-[#2ed573] relative z-10">৳{calcDaily.toFixed(2)}</div>
+            </div>
+            <div className="bg-[#0A1128] p-3 rounded-xl border border-[#2A3A5C]/50 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-blue-500/5 group-hover:bg-blue-500/10 transition-colors"></div>
+              <div className="text-[10px] text-[#B0BBD4] mb-1 font-medium relative z-10">Weekly Return</div>
+              <div className="text-sm md:text-base font-black text-blue-400 relative z-10">৳{calcWeekly.toFixed(2)}</div>
+            </div>
+            <div className="bg-[#0A1128] p-3 rounded-xl border border-[#2A3A5C]/50 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-amber-500/5 group-hover:bg-amber-500/10 transition-colors"></div>
+              <div className="text-[10px] text-[#B0BBD4] mb-1 font-medium relative z-10">Monthly Return</div>
+              <div className="text-sm md:text-base font-black text-[#FCA311] relative z-10">৳{calcMonthly.toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Investment Plans Catalog Header */}
       <div className="space-y-3 pt-2">

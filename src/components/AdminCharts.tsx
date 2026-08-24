@@ -383,7 +383,7 @@ export const AdminCharts: React.FC<AdminChartsProps> = ({ users, requests, trans
             <span className="text-[11px] font-bold uppercase tracking-wider">Total Inflow</span>
             <TrendingUp className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl font-black text-emerald-400">৳{totalApprovedDeposits.toLocaleString()}</div>
+          <div className="text-2xl font-black text-emerald-400">৳{totalApprovedDeposits === 0 ? "000" : totalApprovedDeposits.toLocaleString()}</div>
           <div className="text-[11px] text-slate-400 font-bold mt-1">
             Approved Deposits
           </div>
@@ -394,7 +394,7 @@ export const AdminCharts: React.FC<AdminChartsProps> = ({ users, requests, trans
             <span className="text-[11px] font-bold uppercase tracking-wider">Total Outflow</span>
             <ArrowDownRight className="w-4 h-4 text-red-400" />
           </div>
-          <div className="text-2xl font-black text-red-400">৳{totalApprovedWithdrawals.toLocaleString()}</div>
+          <div className="text-2xl font-black text-red-400">৳{totalApprovedWithdrawals === 0 ? "000" : totalApprovedWithdrawals.toLocaleString()}</div>
           <div className="text-[11px] text-slate-400 font-bold mt-1">
             Paid Withdrawals
           </div>
@@ -405,7 +405,7 @@ export const AdminCharts: React.FC<AdminChartsProps> = ({ users, requests, trans
             <span className="text-[11px] font-bold uppercase tracking-wider">Investment Volume</span>
             <DollarSign className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-2xl font-black text-amber-400">৳{totalInvestmentVolume.toLocaleString()}</div>
+          <div className="text-2xl font-black text-amber-400">৳{totalInvestmentVolume === 0 ? "000" : totalInvestmentVolume.toLocaleString()}</div>
           <div className="text-[11px] text-emerald-400 font-bold mt-1">
             Plans & Bonds Locked
           </div>

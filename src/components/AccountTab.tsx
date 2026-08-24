@@ -7,6 +7,7 @@ import {
   PhoneCall,
   ArrowDownLeft,
   ArrowUpRight,
+  Briefcase,
   LogOut,
   Copy,
   Check,
@@ -18,6 +19,8 @@ import {
   Users,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { ReferralsModal } from './ReferralsModal';
+import { InvestmentHistoryModal } from './InvestmentHistoryModal';
 import { SUPPORT_CONFIG } from '../data/constants';
 
 interface AccountTabProps {
@@ -34,6 +37,8 @@ export const AccountTab: React.FC<AccountTabProps> = ({
   const { currentUser, logout, t, lang, setActiveTab, showToast } = useApp();
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [showReferralsModal, setShowReferralsModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   if (!currentUser) return null;
 
@@ -103,55 +108,49 @@ export const AccountTab: React.FC<AccountTabProps> = ({
         </div>
       </motion.div>
 
-      {/* Referral Link & Code Promotion Card */}
-      <div className="rounded-3xl bg-gradient-to-br from-[#14213D] via-[#1B2C52] to-black border-2 border-[#FCA311]/50 p-5 shadow-2xl relative overflow-hidden">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#FCA311]" />
-            <h4 className="font-black text-sm text-white">{t('refLink')}</h4>
+      {/* Referral Summary */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="rounded-2xl bg-[#14213D] border border-[#2A3A5C] p-5 shadow-xl relative overflow-hidden"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-400">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">Referral Summary</h3>
+              <p className="text-xs text-[#B0BBD4]">Grow your network</p>
+            </div>
           </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FCA311]/20 text-[#FCA311] border border-[#FCA311]/30">
-            {t('totalRef')}: {currentUser.referralCount || 0}
-          </span>
+          <div className="text-right">
+            <p className="text-xs text-[#B0BBD4]">Bonus Earnings</p>
+            <p className="text-lg font-black text-[#FCA311]">৳ {currentUser.commission.toLocaleString()}</p>
+          </div>
         </div>
 
-        {/* Link box */}
-        <div className="bg-black/60 border border-[#2A3A5C] rounded-xl p-2.5 flex items-center gap-2 mb-3">
-          <LinkIcon className="w-3.5 h-3.5 text-[#FCA311] shrink-0" />
-          <input
-            type="text"
-            readOnly
-            value={referralUrl}
-            className="bg-transparent text-xs text-amber-200 font-mono flex-1 outline-none truncate"
-          />
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs font-semibold">
+            <span className="text-[#B0BBD4]">Total Referrals</span>
+            <span className="text-white">{currentUser.referralCount} <span className="text-gray-500">/ 100</span></span>
+          </div>
+          <div className="h-2 w-full bg-[#0A1128] rounded-full overflow-hidden border border-[#2A3A5C]/50 relative">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min((currentUser.referralCount / 100) * 100, 100)}%` }}
+              transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
+              className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+            />
+          </div>
+          <p className="text-[10px] text-center text-[#B0BBD4] pt-1">
+            {100 - currentUser.referralCount > 0 
+              ? `Invite ${100 - currentUser.referralCount} more friends to reach the next milestone!` 
+              : 'Amazing! You reached the ultimate milestone!'}
+          </p>
         </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={handleCopyLink}
-            className="py-2 px-2 rounded-xl bg-[#FCA311] hover:bg-amber-400 text-black font-extrabold text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-1"
-          >
-            {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-            <span className="truncate">{copiedLink ? 'Copied' : 'Copy Link'}</span>
-          </button>
-
-          <button
-            onClick={handleCopyRef}
-            className="py-2 px-2 rounded-xl bg-white/10 hover:bg-white/15 border border-[#2A3A5C] text-white font-bold text-xs active:scale-95 transition-all flex items-center justify-center gap-1"
-          >
-            {copiedCode ? <Check className="w-3.5 h-3.5 text-[#2ed573]" /> : <Copy className="w-3.5 h-3.5" />}
-            <span className="truncate">{copiedCode ? 'Copied' : `Code: ${currentUser.referralCode}`}</span>
-          </button>
-
-          <button
-            onClick={handleShare}
-            className="py-2 px-2 rounded-xl bg-[#14213D] hover:bg-[#1b2c52] border border-[#2A3A5C] text-white font-bold text-xs active:scale-95 transition-all flex items-center justify-center gap-1"
-          >
-            <Share2 className="w-3.5 h-3.5 text-[#FCA311]" />
-            <span className="truncate">{t('share')}</span>
-          </button>
-        </div>
-      </div>
+      </motion.div>
 
       {/* Action Menu List */}
       <div className="rounded-2xl bg-[#14213D] border border-[#2A3A5C] divide-y divide-white/5 shadow-xl overflow-hidden">
@@ -186,6 +185,45 @@ export const AccountTab: React.FC<AccountTabProps> = ({
         </button>
 
         <button
+          onClick={() => setShowHistoryModal(true)}
+          className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all text-left group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
+              <Briefcase className="w-5 h-5" />
+            </div>
+            <span className="text-xs md:text-sm font-bold text-white group-hover:text-indigo-300">
+              Investment History
+            </span>
+          </div>
+          <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-white" />
+        </button>        <button
+          onClick={() => setShowReferralsModal(true)}
+          className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all text-left group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#FCA311]/15 text-[#FCA311] flex items-center justify-center">
+              <Users className="w-5 h-5" />
+            </div>
+            <span className="text-xs md:text-sm font-bold text-white group-hover:text-[#FCA311]">
+              Referral Dashboard
+            </span>
+          </div>
+          <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-white" />
+        </button>        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('openLeaderboardModal'))}
+          className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all text-left group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <span className="text-xs md:text-sm font-bold text-white group-hover:text-purple-300">
+              Leaderboard ✨
+            </span>
+          </div>
+          <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-white" />
+        </button>        <button
           onClick={() => setActiveTab('tx')}
           className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all text-left group"
         >
@@ -248,6 +286,8 @@ export const AccountTab: React.FC<AccountTabProps> = ({
           <ChevronRight className="w-4 h-4 text-red-500" />
         </button>
       </div>
+      {showReferralsModal && <ReferralsModal onClose={() => setShowReferralsModal(false)} />}
+      {showHistoryModal && <InvestmentHistoryModal onClose={() => setShowHistoryModal(false)} />}
     </div>
   );
 };

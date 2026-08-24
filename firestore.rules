@@ -37,7 +37,7 @@ service cloud.firestore {
     // Requests Collection (Deposits & Withdrawals)
     match /requests/{requestId} {
       allow read: if true;
-      allow create: if isValidId(requestId) && incoming().amount is number && incoming().type in ['deposit', 'withdraw'];
+      allow create: if isValidId(requestId) && incoming().amount is number && incoming().type in ['deposit', 'withdrawal'];
       allow update: if isValidId(requestId);
       allow delete: if isValidId(requestId);
     }
@@ -55,6 +55,18 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isValidId(msgId) && incoming().text is string && incoming().text.size() <= 1000;
       allow update, delete: if isValidId(msgId);
+    }
+
+    // Admin Fee Wallet
+    match /adminWallet/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isValidId(docId);
+    }
+
+    // Admin Fee Transactions
+    match /adminFeeTransactions/{txId} {
+      allow read: if true;
+      allow create, update, delete: if isValidId(txId);
     }
 
     // Global Admin Settings

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import confetti from 'canvas-confetti';
-import { collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocFromServer } from 'firebase/firestore';
 import { db, testFirestoreConnection, handleFirestoreError, OperationType } from '../lib/firebase';
-import { User, Transaction, RequestItem, InvestmentPlan, PriceBondDef, SupportMessage, NotificationItem, UserInvestment, UserBond } from '../types';
+import { User, Transaction, RequestItem, InvestmentPlan, PriceBondDef, SupportMessage, NotificationItem, UserInvestment, UserBond, AdminFeeWallet, AdminFeeTransaction } from '../types';
 import { RJ_PLANS, RJ_BONDS, TRANSLATIONS } from '../data/constants';
 
 interface AppContextType {
@@ -10,6 +10,9 @@ interface AppContextType {
   users: Record<string, User>;
   requests: RequestItem[];
   transactions: Transaction[];
+  adminFeeWallet: AdminFeeWallet;
+  adminFeeTransactions: AdminFeeTransaction[];
+  adminWithdrawFee: (amount: number, method: string, accountDetails: string, note: string, password: string) => { success: boolean; message: string };
   lang: 'bn' | 'en';
   setLang: (lang: 'bn' | 'en') => void;
   t: (key: keyof typeof TRANSLATIONS.bn) => string;
@@ -19,25 +22,30 @@ interface AppContextType {
   logout: () => void;
   resetPassword: (phone: string, verificationValue: string, newPass: string, verifyType?: 'id' | 'name' | 'otp') => { success: boolean; message: string };
   adminId: string;
-  adminLogin: (adminId: string, password: string) => { success: boolean; message: string };
+  adminLogin: (adminId: string, password: string) => Promise<{ success: boolean; message: string }>;
   adminLogout: () => void;
   // Transactions & Plans
   submitDeposit: (amount: number, method: 'bKash' | 'Nagad' | 'Rocket', trxId: string) => { success: boolean; message: string };
   submitWithdrawal: (amount: number, method: 'bKash' | 'Nagad' | 'Rocket', accountNumber: string) => { success: boolean; message: string };
   investInPlan: (planId: number) => { success: boolean; message: string };
   claimDailyIncome: (planIndex: number) => { success: boolean; message: string; amount?: number };
+  dailyCheckIn: () => { success: boolean; message: string; amount?: number };
+  transferFunds: (receiverIdOrPhone: string, amount: number, password?: string) => { success: boolean; message: string };
+  markNotificationRead: (notificationId: string) => void;
   buyBond: (bondId: string) => { success: boolean; message: string; serialNumber?: string };
   // Admin Operations
   approveRequest: (requestId: string) => { success: boolean; message: string };
   rejectRequest: (requestId: string, notes?: string) => { success: boolean; message: string };
   adminDeleteRequest: (requestId: string) => { success: boolean; message: string };
   adminDeleteUser: (phone: string) => { success: boolean; message: string };
+  adminToggleUserStatus: (phone: string) => { success: boolean; message: string; newStatus: string };
   awardBondPrize: (serialNumber: string, prizeRank: string, prizeAmount: number) => { success: boolean; message: string };
   refundBond: (serialNumber: string) => { success: boolean; message: string };
   executeBondDraw: (bondId: string) => { success: boolean; message: string; winnersCount?: number };
   adminAdjustBalance: (phone: string, amount: number, note: string) => { success: boolean; message: string };
-  adminChangePassword: (newPass: string) => { success: boolean; message: string };
-  adminChangeCredentials: (newAdminId: string, newPass: string) => { success: boolean; message: string };
+  sendGlobalNotification: (title: string, message: string) => { success: boolean; message: string };
+  adminChangePassword: (newPass: string) => Promise<{ success: boolean; message: string }>;
+  adminChangeCredentials: (newAdminId: string, newPass: string) => Promise<{ success: boolean; message: string }>;
   // UI & Toast
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -122,6 +130,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch {
       return INITIAL_TRANSACTIONS;
     }
+  });
+  const [adminFeeWallet, setAdminFeeWallet] = useState<AdminFeeWallet>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY + '_feeWallet');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return { feeBalance: 0, totalCollected: 0, totalWithdrawn: 0, updatedAt: Date.now() };
+  });
+
+  const [adminFeeTransactions, setAdminFeeTransactions] = useState<AdminFeeTransaction[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY + '_feeTxs');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [];
   });
 
   const [adminId, setAdminId] = useState<string>(() => {
@@ -235,6 +258,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
+  // Real-time Firestore sync for Admin Fee
+  useEffect(() => {
+    try {
+      const unsubWallet = onSnapshot(doc(db, 'adminWallet', 'info'), (docSnap) => {
+        if (docSnap.exists()) {
+          setAdminFeeWallet(docSnap.data() as AdminFeeWallet);
+        }
+      });
+      const unsubTxs = onSnapshot(collection(db, 'adminFeeTransactions'), (snapshot) => {
+        const fetchedTxs: AdminFeeTransaction[] = [];
+        snapshot.forEach((docSnap) => {
+          fetchedTxs.push(docSnap.data() as AdminFeeTransaction);
+        });
+        fetchedTxs.sort((a, b) => b.timestamp - a.timestamp);
+        setAdminFeeTransactions(fetchedTxs);
+      });
+      return () => { unsubWallet(); unsubTxs(); };
+    } catch (error) {
+      console.warn('Firestore fee sync failed', error);
+    }
+  }, []);
+
+  // Real-time Firestore sync for Admin Credentials
+  useEffect(() => {
+    try {
+      const unsub = onSnapshot(doc(db, 'settings', 'adminCredentials'), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.adminId) {
+            setAdminId(data.adminId);
+            localStorage.setItem(MASTER_ADMIN_ID_KEY, data.adminId);
+          }
+          if (data.adminPw) {
+            setAdminPw(data.adminPw);
+            localStorage.setItem(MASTER_ADMIN_PASS_KEY, data.adminPw);
+          }
+        }
+      });
+      return () => unsub();
+    } catch (error) {
+      console.warn('Firestore admin credentials sync failed', error);
+    }
+  }, []);
+
   // Real-time Firestore sync for Support Messages
   useEffect(() => {
     try {
@@ -273,6 +340,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_KEY + '_users', JSON.stringify(users));
       localStorage.setItem(STORAGE_KEY + '_requests', JSON.stringify(requests));
       localStorage.setItem(STORAGE_KEY + '_txs', JSON.stringify(transactions));
+      localStorage.setItem(STORAGE_KEY + '_feeWallet', JSON.stringify(adminFeeWallet));
+      localStorage.setItem(STORAGE_KEY + '_feeTxs', JSON.stringify(adminFeeTransactions));
       if (currentUserPhone) {
         localStorage.setItem(STORAGE_KEY + '_cur', currentUserPhone);
       } else {
@@ -281,7 +350,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (e) {
       console.error('Failed to sync to localStorage', e);
     }
-  }, [users, requests, transactions, currentUserPhone]);
+  }, [users, requests, transactions, currentUserPhone, adminFeeWallet, adminFeeTransactions]);
 
   // Firestore background write helpers
   const persistUserToFirestore = async (user: User) => {
@@ -316,7 +385,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const deleteUserFromFirestore = async (phone: string) => {
+  
+  const persistFeeWalletToFirestore = async (wallet: AdminFeeWallet) => {
+    try { await setDoc(doc(db, 'adminWallet', 'info'), wallet, { merge: true }); } catch (error) {}
+  };
+  const persistFeeTxToFirestore = async (tx: AdminFeeTransaction) => {
+    try { await setDoc(doc(db, 'adminFeeTransactions', tx.id), tx, { merge: true }); } catch (error) {}
+  };
+
+const deleteUserFromFirestore = async (phone: string) => {
     try {
       await deleteDoc(doc(db, 'users', phone));
     } catch (error) {
@@ -385,14 +462,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const parentUser = (Object.values(users) as User[]).find((u) => u.referralCode === cleanRef);
       if (parentUser) {
         referredByPhone = parentUser.phone;
-        // Increment parent's referral count
+        const bonusAmount = 20; // 20 BDT bonus for referring a new user
+        
+        // Give bonus and increment referral count
         setUsers((prev) => ({
           ...prev,
           [parentUser.phone]: {
             ...prev[parentUser.phone],
+            balance: prev[parentUser.phone].balance + bonusAmount,
+            commission: prev[parentUser.phone].commission + bonusAmount,
             referralCount: (prev[parentUser.phone].referralCount || 0) + 1,
           },
         }));
+
+        // Add a transaction for the bonus
+        const bonusTx = {
+          id: `tx-${Date.now()}-signup-bonus`,
+          userId: parentUser.phone,
+          type: 'bonus',
+          title: `Referral Signup Bonus: ${cleanName}`,
+          titleBn: `রেফার সাইনআপ বোনাস: ${cleanName}`,
+          amount: bonusAmount,
+          status: 'completed',
+          date: new Date().toISOString().slice(0, 10),
+          details: 'Signup Bonus'
+        };
+        setTransactions((prev) => [bonusTx, ...prev]);
+        
+        // Notify referrer
+        addNotification(
+          parentUser.phone,
+          'Referral Bonus Earned! 🎉',
+          `${cleanName} joined using your code. You earned ৳${bonusAmount}!`
+        );
       }
     }
 
@@ -481,28 +583,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true, message: 'Password reset successful' };
   };
 
-  const adminLogin = (idInput: string, passwordInput: string) => {
+  const adminLogin = async (idInput: string, passwordInput: string) => {
     const cleanId = (idInput || '').trim();
     const cleanPass = passwordInput || '';
     
-    // Accept standard stored credentials OR the specific ID requested by user
-    if (
-      (cleanId.toLowerCase() === adminId.toLowerCase() && cleanPass === adminPw) ||
-      (cleanId === '1020304' && cleanPass === 'admin1234')
-    ) {
-      // If they used the new ID, automatically update their stored credentials to match it
-      if (cleanId === '1020304') {
-        setAdminId('1020304');
-        setAdminPw('admin1234');
-        localStorage.setItem(MASTER_ADMIN_ID_KEY, '1020304');
-        localStorage.setItem(MASTER_ADMIN_PASS_KEY, 'admin1234');
-      }
+    let currentAdminId = adminId;
+    let currentAdminPw = adminPw;
 
+    try {
+      const snap = await getDocFromServer(doc(db, 'settings', 'adminCredentials'));
+      if (snap.exists()) {
+        currentAdminId = snap.data().adminId || currentAdminId;
+        currentAdminPw = snap.data().adminPw || currentAdminPw;
+      }
+    } catch(e) {
+      console.warn("Could not fetch admin credentials on login", e);
+    }
+    
+    if (cleanId.toLowerCase() === currentAdminId.toLowerCase() && cleanPass === currentAdminPw) {
       setIsAdminLoggedIn(true);
       setActiveTab('admin');
       showToast('Master Admin Authenticated', 'success');
       return { success: true, message: 'Admin login successful' };
     }
+    
+    // Hardcoded emergency fallback in case DB is totally broken or out of sync
+    if (cleanId === '1020304' && cleanPass === 'admin1234') {
+      setIsAdminLoggedIn(true);
+      setActiveTab('admin');
+      showToast('Emergency Master Admin Authenticated', 'success');
+      return { success: true, message: 'Admin login successful' };
+    }
+    
     return {
       success: false,
       message: lang === 'bn' ? 'ভুল অ্যাডমিন আইডি বা পাসওয়ার্ড' : 'Invalid Admin ID or Password',
@@ -872,7 +984,174 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true, message: 'Claim successful', amount: income };
   };
 
-  const buyBond = (bondId: string) => {
+  
+  const dailyCheckIn = () => {
+    if (!currentUser) return { success: false, message: 'Please login' };
+    const today = new Date().toISOString().slice(0, 10);
+    
+    if (currentUser.lastCheckInDate === today) {
+      return { success: false, message: lang === 'bn' ? 'আপনি আজকের রিওয়ার্ড পেয়েছেন!' : 'Already claimed for today!' };
+    }
+
+    const reward = Math.floor(Math.random() * 5) + 1; // 1 to 5 BDT
+    const updatedUser = {
+      ...currentUser,
+      balance: currentUser.balance + reward,
+      lastCheckInDate: today
+    };
+
+    const txId = "checkin-" + Date.now();
+    const newTx = {
+      id: txId,
+      userId: currentUser.phone,
+      type: 'bonus',
+      title: 'Daily Check-in Reward',
+      titleBn: 'ডেইলি চেক-ইন রিওয়ার্ড',
+      amount: reward,
+      status: 'completed',
+      date: today,
+      timestamp: Date.now()
+    };
+
+    setUsers(prev => ({ ...prev, [currentUser.phone]: updatedUser }));
+    setTransactions(prev => [newTx, ...prev]);
+    persistUserToFirestore(updatedUser);
+    
+    // Add Notification
+    addNotification(currentUser.phone, 'Bonus Received', "You received ৳" + reward + " from Daily Check-in!");
+
+    return { success: true, message: lang === 'bn' ? "আপনি " + reward + " টাকা রিওয়ার্ড পেয়েছেন!" : "You received ৳" + reward + " reward!", amount: reward };
+  };
+
+  const transferFunds = (receiverIdOrPhone: string, amount: number, password?: string) => {
+    if (!currentUser) return { success: false, message: 'Please login' };
+    if (amount <= 0) return { success: false, message: 'Invalid amount' };
+    if (amount > currentUser.balance) return { success: false, message: 'Insufficient balance' };
+    if (receiverIdOrPhone === currentUser.phone || receiverIdOrPhone === currentUser.id) return { success: false, message: 'Cannot transfer to yourself' };
+    if (password !== currentUser.password) return { success: false, message: lang === 'bn' ? 'ভুল পাসওয়ার্ড' : 'Incorrect password' };
+    
+    let receiver = users[receiverIdOrPhone];
+    if (!receiver) {
+      receiver = Object.values(users).find((u) => (u as User).id === receiverIdOrPhone);
+    }
+    if (!receiver) return { success: false, message: 'Receiver account not found' };
+
+    const fee = amount * 0.02; // 2% fee
+    const netAmount = amount - fee;
+
+    const updatedSender = {
+      ...currentUser,
+      balance: currentUser.balance - amount
+    };
+    
+    const updatedReceiver = {
+      ...receiver,
+      balance: receiver.balance + netAmount
+    };
+    
+    const now = Date.now();
+    const today = new Date().toISOString().slice(0, 10);
+    
+    const senderTx = {
+      id: "tx-" + now + "-send",
+      userId: currentUser.phone,
+      type: 'withdrawal', 
+      title: "Transfer to " + receiver.phone,
+      titleBn: receiver.phone + "-এ ট্রান্সফার",
+      amount: -amount,
+      status: 'completed',
+      date: today,
+      timestamp: now,
+      details: "Fee: ৳" + fee.toFixed(2)
+    };
+
+    const receiverTx = {
+      id: "tx-" + now + "-recv",
+      userId: receiver.phone,
+      type: 'deposit',
+      title: "Received from " + currentUser.phone,
+      titleBn: currentUser.phone + " থেকে প্রাপ্ত",
+      amount: netAmount,
+      status: 'completed',
+      date: today,
+      timestamp: now
+    };
+    
+    const newFeeWallet = {
+      ...adminFeeWallet,
+      feeBalance: adminFeeWallet.feeBalance + fee,
+      totalCollected: adminFeeWallet.totalCollected + fee,
+      updatedAt: now,
+    };
+
+    const newFeeTx = {
+      id: "feetx-" + now,
+      type: 'collection',
+      amount: fee,
+      method: 'p2p_transfer',
+      userId: currentUser.phone,
+      note: "Fee from P2P transfer (" + amount + ")",
+      status: 'completed',
+      date: today,
+      timestamp: now,
+    };
+
+    setUsers(prev => ({ 
+      ...prev, 
+      [currentUser.phone]: updatedSender,
+      [receiver.phone]: updatedReceiver
+    }));
+    setTransactions(prev => [senderTx, receiverTx, ...prev]);
+    setAdminFeeWallet(newFeeWallet);
+    setAdminFeeTransactions(prev => [newFeeTx, ...prev]);
+    
+    persistUserToFirestore(updatedSender);
+    persistUserToFirestore(updatedReceiver);
+    
+    addNotification(receiver.phone, 'Funds Received', "You received ৳" + netAmount.toFixed(2) + " from " + currentUser.phone);
+    addNotification(currentUser.phone, 'Transfer Successful', "Transferred ৳" + amount.toFixed(2) + " to " + receiver.phone);
+
+    return { success: true, message: 'Transfer successful' };
+  };
+
+  const addNotification = (userPhone, title, message) => {
+    setUsers(prev => {
+      const user = prev[userPhone];
+      if (!user) return prev;
+      
+      const newNotif = {
+        id: "notif-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5),
+        title,
+        message,
+        date: new Date().toISOString().slice(0, 10),
+        read: false,
+        type: 'system'
+      };
+      
+      const updatedUser = {
+        ...user,
+        notifications: [newNotif, ...(user.notifications || [])]
+      };
+      persistUserToFirestore(updatedUser);
+      return { ...prev, [userPhone]: updatedUser };
+    });
+  };
+
+  const markNotificationRead = (notificationId) => {
+    if (!currentUser) return;
+    const updatedNotifs = (currentUser.notifications || []).map(n => 
+      n.id === notificationId ? { ...n, read: true } : n
+    );
+    
+    const updatedUser = {
+      ...currentUser,
+      notifications: updatedNotifs
+    };
+    
+    setUsers(prev => ({ ...prev, [currentUser.phone]: updatedUser }));
+    persistUserToFirestore(updatedUser);
+  };
+const buyBond = (bondId: string) => {
     if (!currentUser) return { success: false, message: 'Please login' };
     const bondDef = RJ_BONDS.find((b) => b.id === bondId);
     if (!bondDef) return { success: false, message: 'Invalid bond' };
@@ -935,6 +1214,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Admin Actions
+  const adminWithdrawFee = (amount: number, method: string, accountDetails: string, note: string, password: string) => {
+    if (amount <= 0 || amount > adminFeeWallet.feeBalance) {
+      return { success: false, message: 'Invalid amount or insufficient balance' };
+    }
+    
+    // Security: Verify Admin Password before withdrawal
+    if (password !== adminPw) {
+      return { success: false, message: 'Incorrect Admin Password/PIN' };
+    }
+    
+    const newWallet = {
+      ...adminFeeWallet,
+      feeBalance: adminFeeWallet.feeBalance - amount,
+      totalWithdrawn: adminFeeWallet.totalWithdrawn + amount,
+      updatedAt: Date.now(),
+    };
+    
+    const newTx: AdminFeeTransaction = {
+      id: `feetx-${Date.now()}`,
+      type: 'withdrawal',
+      amount,
+      method,
+      accountDetails,
+      note,
+      adminId,
+      status: 'completed',
+      date: new Date().toISOString().slice(0, 10),
+      timestamp: Date.now(),
+    };
+    
+    setAdminFeeWallet(newWallet);
+    persistFeeWalletToFirestore(newWallet);
+    
+    setAdminFeeTransactions((prev) => [newTx, ...prev]);
+    persistFeeTxToFirestore(newTx);
+    
+    showToast(`Successfully withdrew ৳${amount} from Fee Balance`, 'success');
+    return { success: true, message: 'Fee withdrawal successful' };
+  };
+  
   const approveRequest = (requestId: string) => {
     const req = requests.find((r) => r.id === requestId);
     if (!req) return { success: false, message: 'Request not found' };
@@ -953,6 +1272,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...user,
           balance: user.balance + req.amount,
         };
+        addNotification(req.userPhone, 'Deposit Approved', 'Your deposit of ৳' + req.amount + ' has been approved.');
         setUsers((prev) => ({
           ...prev,
           [req.userPhone]: updatedUser,
@@ -975,6 +1295,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...user,
           totalWithdrawn: user.totalWithdrawn + req.amount,
         };
+        addNotification(req.userPhone, 'Withdrawal Approved', 'Your withdrawal of ৳' + req.amount + ' has been approved.');
         setUsers((prev) => ({
           ...prev,
           [req.userPhone]: updatedUser,
@@ -988,6 +1309,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setTransactions((prev) => prev.map((tx) => tx.id === txToUpdate.id ? updatedTx : tx));
         persistTxToFirestore(updatedTx);
       }
+      // Collect fee for admin wallet
+      if (req.fee && req.fee > 0) {
+        setAdminFeeWallet((prev) => {
+          const newWallet = {
+            ...prev,
+            feeBalance: prev.feeBalance + (req.fee || 0),
+            totalCollected: prev.totalCollected + (req.fee || 0),
+            updatedAt: Date.now(),
+          };
+          persistFeeWalletToFirestore(newWallet);
+          return newWallet;
+        });
+        const feeTx: AdminFeeTransaction = {
+          id: `feetx-${Date.now()}-${req.id}`,
+          type: 'collection',
+          amount: req.fee,
+          withdrawalId: req.id,
+          userId: req.userPhone,
+          status: 'completed',
+          date: new Date().toISOString().slice(0, 10),
+          timestamp: Date.now(),
+        };
+        setAdminFeeTransactions((prev) => [feeTx, ...prev]);
+        persistFeeTxToFirestore(feeTx);
+      }
+
     }
 
     showToast(`Request ${requestId} approved successfully!`, 'success');
@@ -1012,6 +1359,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...user,
           balance: user.balance + req.amount,
         };
+        addNotification(req.userPhone, 'Deposit Approved', 'Your deposit of ৳' + req.amount + ' has been approved.');
         setUsers((prev) => ({
           ...prev,
           [req.userPhone]: updatedUser,
@@ -1190,6 +1538,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true, message: 'Draw executed', winnersCount: 3 };
   };
 
+  
+  const sendGlobalNotification = (title: string, message: string) => {
+    try {
+      setUsers(prev => {
+        const next = { ...prev };
+        Object.keys(next).forEach(phone => {
+          const user = next[phone];
+          const newNotif = {
+            id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            title,
+            message,
+            date: new Date().toISOString().slice(0, 10),
+            read: false,
+            type: 'system' as const
+          };
+          next[phone] = {
+            ...user,
+            notifications: [newNotif, ...(user.notifications || [])]
+          };
+          persistUserToFirestore(next[phone]);
+        });
+        return next;
+      });
+      return { success: true, message: 'Global notification sent' };
+    } catch (err) {
+      return { success: false, message: 'Failed to send notification' };
+    }
+  };
+
   const adminAdjustBalance = (phone: string, amount: number, note: string) => {
     if (!users[phone]) return { success: false, message: 'User not found' };
 
@@ -1218,7 +1595,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true, message: 'Balance adjusted' };
   };
 
-  const adminChangeCredentials = (newAdminId: string, newPass: string) => {
+  
+  const adminChangeCredentials = async (newAdminId: string, newPass: string) => {
     const cleanId = (newAdminId || '').trim();
     if (!cleanId || cleanId.length < 3) {
       return { success: false, message: 'Admin ID must be at least 3 characters' };
@@ -1230,12 +1608,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setAdminPw(newPass);
     localStorage.setItem(MASTER_ADMIN_ID_KEY, cleanId);
     localStorage.setItem(MASTER_ADMIN_PASS_KEY, newPass);
+    
+    try {
+      await setDoc(doc(db, 'settings', 'adminCredentials'), {
+        adminId: cleanId,
+        adminPw: newPass,
+        updatedAt: Date.now()
+      });
+    } catch (err) {
+      console.error('Failed to sync admin credentials to Firestore', err);
+    }
+    
     showToast('Master Admin credentials updated successfully!', 'success');
     return { success: true, message: 'Credentials updated' };
   };
 
   const adminChangePassword = (newPass: string) => {
     return adminChangeCredentials(adminId, newPass);
+  };
+
+  const adminToggleUserStatus = (phone: string) => {
+    const cleanPhone = phone.trim();
+    const targetUser = users[cleanPhone];
+    if (!targetUser) return { success: false, message: 'User not found', newStatus: '' };
+    
+    const newStatus = targetUser.status === 'suspended' ? 'active' : 'suspended';
+    
+    const updatedUser = {
+      ...targetUser,
+      status: newStatus
+    };
+    
+    setUsers(prev => ({ ...prev, [cleanPhone]: updatedUser }));
+    persistUserToFirestore(updatedUser);
+    
+    return { success: true, message: `User ${targetUser.fullName} ${newStatus === 'suspended' ? 'suspended' : 'activated'} successfully`, newStatus };
   };
 
   const adminDeleteUser = (phone: string) => {
@@ -1338,7 +1745,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         users,
         requests,
         transactions,
-        lang,
+    adminFeeWallet,
+    adminFeeTransactions,
+    adminWithdrawFee,
+    lang,
         setLang,
         t,
         isAdminLoggedIn,
@@ -1351,6 +1761,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         adminLogout,
         submitDeposit,
         submitWithdrawal,
+        dailyCheckIn,
+        transferFunds,
+        markNotificationRead,
         investInPlan,
         claimDailyIncome,
         buyBond,
@@ -1358,9 +1771,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         rejectRequest,
         adminDeleteRequest,
         adminDeleteUser,
+        adminToggleUserStatus,
         awardBondPrize,
         refundBond,
         executeBondDraw,
+        sendGlobalNotification,
         adminAdjustBalance,
         adminChangePassword,
         adminChangeCredentials,

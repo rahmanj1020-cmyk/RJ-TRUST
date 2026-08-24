@@ -1,5 +1,5 @@
-import React from 'react';
-import { MessageSquare, LogOut, Shield, Globe, Bell } from 'lucide-react';
+import React, { useState } from 'react';
+import { MessageSquare, LogOut, Shield, Globe, Bell, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface NavbarProps {
@@ -8,7 +8,11 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenChat, onOpenAdminLogin }) => {
-  const { currentUser, lang, setLang, logout, isAdminLoggedIn, setActiveTab, unreadChatCount } = useApp();
+  const { currentUser, lang, setLang, logout, isAdminLoggedIn, setActiveTab, unreadChatCount, markNotificationRead } = useApp();
+  const [showNotifs, setShowNotifs] = useState(false);
+
+  const notifications = currentUser?.notifications || [];
+  const unreadNotifsCount = notifications.filter(n => !n.read).length;
 
   return (
     <header className="sticky top-0 z-40 bg-[#0b1120]/90 border-b border-slate-800/80 backdrop-blur-xl px-4 py-3 shadow-lg shadow-black/40">
@@ -42,26 +46,75 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenChat, onOpenAdminLogin }) 
           {/* Language Switcher */}
           <button
             onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}
-            className="px-2.5 py-1.5 rounded-full bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-xs font-bold text-[#FCA311] flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
-            title="Toggle Language (বাং / EN)"
+            className="hidden sm:flex px-2.5 py-1.5 rounded-full bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-xs font-bold text-[#FCA311] items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
+            title="Toggle Language"
           >
             <Globe className="w-3.5 h-3.5" />
             <span>{lang === 'bn' ? 'বাং' : 'EN'}</span>
           </button>
+          
+          {/* Notifications */}
+          {currentUser && (
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifs(!showNotifs)}
+                className="relative p-2 rounded-full bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-slate-300 hover:text-[#FCA311] transition-all active:scale-95 cursor-pointer shadow-sm"
+                title="Notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadNotifsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FCA311] text-black rounded-full text-[10px] font-black flex items-center justify-center shadow-sm">
+                    {unreadNotifsCount}
+                  </span>
+                )}
+              </button>
 
-          {/* Support Chat Button with Badge */}
-          <button
-            onClick={onOpenChat}
-            className="relative p-2 rounded-full bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-slate-300 hover:text-[#FCA311] transition-all active:scale-95 cursor-pointer shadow-sm"
-            title="Customer Support Chat"
-          >
-            <MessageSquare className="w-4 h-4" />
-            {unreadChatCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] font-black flex items-center justify-center animate-pulse shadow-sm">
-                {unreadChatCount}
-              </span>
-            )}
-          </button>
+              {/* Notifications Dropdown */}
+              {showNotifs && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)}></div>
+                  <div className="absolute top-full right-0 mt-2 w-72 max-h-[80vh] overflow-y-auto bg-[#14213D] border border-[#2A3A5C] rounded-2xl shadow-2xl z-50 p-2 flex flex-col gap-2">
+                    <div className="px-3 py-2 border-b border-[#2A3A5C] flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-white">Notifications</h3>
+                    </div>
+                    {notifications.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-slate-400">
+                        No notifications yet.
+                      </div>
+                    ) : (
+                      notifications.slice(0, 10).map((n) => (
+                        <div 
+                          key={n.id} 
+                          className={`p-3 rounded-xl border ${n.read ? 'bg-[#0A1128]/50 border-transparent' : 'bg-[#0A1128] border-amber-500/30'} flex items-start gap-3 transition-colors`}
+                          onClick={() => {
+                            if (!n.read) markNotificationRead(n.id);
+                          }}
+                        >
+                          <div className={`mt-0.5 shrink-0 ${n.read ? 'text-slate-500' : 'text-amber-400'}`}>
+                            <Bell className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className={`text-xs font-bold ${n.read ? 'text-slate-300' : 'text-white'}`}>{n.title}</h4>
+                            <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{n.message}</p>
+                            <span className="text-[9px] text-slate-500 mt-1 block">{n.date}</span>
+                          </div>
+                          {!n.read && (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); markNotificationRead(n.id); }}
+                              className="text-amber-500 hover:text-amber-400 p-1"
+                              title="Mark as read"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Admin Panel button */}
           {isAdminLoggedIn ? (
@@ -75,7 +128,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenChat, onOpenAdminLogin }) 
           ) : (
             <button
               onClick={onOpenAdminLogin}
-              className="p-2 rounded-full bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-slate-300 hover:text-amber-300 transition-all active:scale-95 cursor-pointer shadow-sm"
+              className="hidden md:flex p-2 rounded-full bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-slate-300 hover:text-amber-300 transition-all active:scale-95 cursor-pointer shadow-sm"
               title="Admin Portal"
             >
               <Shield className="w-4 h-4" />

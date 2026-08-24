@@ -1,9 +1,7 @@
-<!doctype html>
-<html lang="bn" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <title>RJ TRUST — TRUST • GROW • INFINITE</title>
+const fs = require('fs');
+let content = fs.readFileSync('index.html', 'utf8');
+
+const newMeta = `    <title>RJ TRUST — TRUST • GROW • INFINITE</title>
     
     <!-- Primary Meta Tags -->
     <meta name="title" content="RJ TRUST — TRUST • GROW • INFINITE" />
@@ -21,15 +19,11 @@
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:title" content="RJ TRUST — TRUST • GROW • INFINITE" />
-    <meta property="twitter:description" content="RJ TRUST is a premium wealth management platform offering high-yield VIP investment plans, secure price bonds, and lucrative 3-generation referral bonuses." />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Cinzel:wght@700;900&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <meta name="theme-color" content="#030712" />
-  </head>
-  <body class="bg-black text-white antialiased selection:bg-[#FCA311] selection:text-black">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+    <meta property="twitter:description" content="RJ TRUST is a premium wealth management platform offering high-yield VIP investment plans, secure price bonds, and lucrative 3-generation referral bonuses." />`;
 
+content = content.replace(
+  /<title>RJ TRUST — TRUST • GROW • INFINITE<\/title>\s*<meta name="description" content="[^"]+" \/>/,
+  newMeta
+);
+
+fs.writeFileSync('index.html', content);

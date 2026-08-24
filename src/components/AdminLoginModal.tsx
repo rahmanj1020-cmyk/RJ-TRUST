@@ -16,7 +16,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adminIdInput.trim()) {
       showToast(lang === 'bn' ? 'অ্যাডমিন আইডি দিন' : 'Please enter Admin ID', 'error');
@@ -26,7 +26,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
       showToast(lang === 'bn' ? 'অ্যাডমিন পাসওয়ার্ড দিন' : 'Please enter Admin password', 'error');
       return;
     }
-    const res = adminLogin(adminIdInput, password);
+    const res = await adminLogin(adminIdInput, password);
     if (res.success) {
       onClose();
       setAdminIdInput('');

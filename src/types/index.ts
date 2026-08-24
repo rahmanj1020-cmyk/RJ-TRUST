@@ -18,6 +18,8 @@ export interface User {
   lastClaimTimestamp?: Record<number, number>; // planIndex -> timestamp ms
   investments: UserInvestment[];
   bonds: UserBond[];
+  lastCheckInDate?: string;
+  notifications?: NotificationItem[];
 }
 
 export interface InvestmentPlan {
@@ -125,4 +127,26 @@ export interface NotificationItem {
   date: string;
   read: boolean;
   type: 'system' | 'reward' | 'transaction';
+}
+
+export interface AdminFeeWallet {
+  feeBalance: number;
+  totalCollected: number;
+  totalWithdrawn: number;
+  updatedAt: number;
+}
+
+export interface AdminFeeTransaction {
+  id: string;
+  type: 'collection' | 'withdrawal' | 'refund';
+  amount: number;
+  method?: string;
+  accountDetails?: string;
+  withdrawalId?: string; // The user withdrawal that generated this fee
+  userId?: string;
+  adminId?: string;
+  note?: string;
+  status: 'completed' | 'pending' | 'rejected';
+  date: string;
+  timestamp: number;
 }

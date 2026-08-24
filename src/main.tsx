@@ -8,3 +8,4 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+import { forceResetAllStats } from './reset_all'; Object.assign(window, { forceResetAllStats });

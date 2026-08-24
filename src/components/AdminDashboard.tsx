@@ -11,10 +11,14 @@ export const AdminDashboard: React.FC = () => {
     users,
     requests,
     transactions,
+    adminFeeWallet,
+    adminFeeTransactions,
+    adminWithdrawFee,
     approveRequest,
     rejectRequest,
     adminDeleteRequest,
     adminDeleteUser,
+    adminToggleUserStatus,
     awardBondPrize,
     refundBond,
     executeBondDraw,
@@ -23,10 +27,11 @@ export const AdminDashboard: React.FC = () => {
     adminChangeCredentials,
     adminLogout,
     showToast,
+    sendGlobalNotification,
     lang,
   } = useApp();
 
-  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'pending' | 'approved' | 'rejected' | 'users' | 'bonds' | 'settings'>('analytics');
+  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'pending' | 'approved' | 'rejected' | 'users' | 'bonds' | 'fees' | 'settings'>('analytics');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [bondSearchQuery, setBondSearchQuery] = useState('');
   const [selectedBondCategory, setSelectedBondCategory] = useState('b100');
@@ -41,7 +46,13 @@ export const AdminDashboard: React.FC = () => {
 
   // Admin credentials change state
   const [newAdminIdState, setNewAdminIdState] = useState(adminId || 'admin');
+  
+  React.useEffect(() => {
+    setNewAdminIdState(adminId || 'admin');
+  }, [adminId]);
   const [newAdminPass, setNewAdminPass] = useState('');
+  const [announceTitle, setAnnounceTitle] = useState('📢 New Investment Plan Live!');
+  const [announceMsg, setAnnounceMsg] = useState('Check out our latest packages for higher returns.');
   const [confirmAdminPass, setConfirmAdminPass] = useState('');
 
   // Stats calculation
@@ -58,6 +69,9 @@ export const AdminDashboard: React.FC = () => {
     .reduce((sum, r) => sum + r.amount, 0);
 
   const pendingRequests = requests.filter((r) => r.status === 'pending');
+  const pendingFees = pendingRequests
+    .filter(r => r.type === 'withdrawal' && r.fee)
+    .reduce((sum, r) => sum + (r.fee || 0), 0);
   const approvedRequests = requests.filter((r) => r.status === 'approved');
   const rejectedRequests = requests.filter((r) => r.status === 'rejected');
 
@@ -74,7 +88,7 @@ export const AdminDashboard: React.FC = () => {
     setAdjustAmount('');
   };
 
-  const handleCredentialsSubmit = (e: React.FormEvent) => {
+  const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAdminIdState.trim() || newAdminIdState.trim().length < 3) {
       showToast('Admin ID must be at least 3 characters', 'error');
@@ -88,7 +102,7 @@ export const AdminDashboard: React.FC = () => {
       showToast('Passwords do not match', 'error');
       return;
     }
-    const res = adminChangeCredentials(newAdminIdState, newAdminPass);
+    const res = await adminChangeCredentials(newAdminIdState, newAdminPass);
     if (res.success) {
       setNewAdminPass('');
       setConfirmAdminPass('');
@@ -169,7 +183,7 @@ export const AdminDashboard: React.FC = () => {
 
         <div className="bg-[#14213D] border border-[#2A3A5C] rounded-2xl p-4 text-center">
           <div className="text-lg md:text-xl font-black text-[#FCA311]">
-            ৳{totalDeposits.toLocaleString()}
+            ৳{totalDeposits === 0 ? "000" : totalDeposits.toLocaleString()}
           </div>
           <div className="text-[10px] font-bold text-[#B0BBD4] uppercase tracking-wider mt-1">
             Total Deposits
@@ -178,7 +192,7 @@ export const AdminDashboard: React.FC = () => {
 
         <div className="bg-[#14213D] border border-[#2A3A5C] rounded-2xl p-4 text-center">
           <div className="text-lg md:text-xl font-black text-red-400">
-            ৳{totalWithdrawals.toLocaleString()}
+            ৳{totalWithdrawals === 0 ? "000" : totalWithdrawals.toLocaleString()}
           </div>
           <div className="text-[10px] font-bold text-[#B0BBD4] uppercase tracking-wider mt-1">
             Total Withdrawals
@@ -258,6 +272,18 @@ export const AdminDashboard: React.FC = () => {
           }`}
         >
           <span>Bond Lottery & Prizes</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('fees')}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            activeSubTab === 'fees'
+              ? 'bg-[#FCA311] text-black shadow-lg shadow-amber-500/20'
+              : 'bg-[#14213D] text-[#B0BBD4] border border-[#2A3A5C] hover:text-white'
+          }`}
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Fees Wallet</span>
         </button>
 
         <button
@@ -474,6 +500,11 @@ export const AdminDashboard: React.FC = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-black text-[#FCA311]">#{i + 1}</span>
                       <span className="font-black text-sm text-white">{u.fullName}</span>
+                      {u.status === 'suspended' && (
+                        <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-[10px] font-extrabold text-red-400 border border-red-500/30 uppercase tracking-wider">
+                          Suspended
+                        </span>
+                      )}
                       <span className="text-xs text-[#B0BBD4] font-mono">({u.phone})</span>
                       <span className="px-2 py-0.5 rounded-full bg-black/40 text-[10px] font-extrabold text-amber-300 border border-[#FCA311]/30">
                         VIP {u.activePlanIndex >= 0 ? u.activePlanIndex + 1 : 0}
@@ -505,6 +536,19 @@ export const AdminDashboard: React.FC = () => {
                       className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-extrabold text-xs active:scale-95 transition-all"
                     >
                       Adjust Balance
+                    </button>
+                    <button
+                      onClick={() => {
+                        const res = adminToggleUserStatus(u.phone);
+                        if (res.success) showToast(res.message, 'success');
+                      }}
+                      className={`px-3 py-1.5 rounded-xl font-extrabold text-xs active:scale-95 transition-all flex items-center gap-1 ${
+                        u.status === 'suspended' 
+                          ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300' 
+                          : 'bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 text-orange-300'
+                      }`}
+                    >
+                      <span>{u.status === 'suspended' ? 'Unban User' : 'Suspend User'}</span>
                     </button>
                     <button
                       onClick={() => setUserToDelete(u)}
@@ -683,7 +727,77 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* Tab: Settings */}
-      {activeSubTab === 'settings' && (
+      {activeSubTab === 'fees' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-6 text-white shadow-xl shadow-indigo-500/20">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <DollarSign className="w-6 h-6 text-white" />
+                  </div>
+                  <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">Available</span>
+                </div>
+                <h3 className="text-sm font-medium text-indigo-100 mb-1">Fee Balance</h3>
+                <div className="text-3xl font-bold">
+                  ৳{(!adminFeeWallet?.feeBalance || adminFeeWallet.feeBalance === 0) ? "000" : adminFeeWallet.feeBalance.toLocaleString()}
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-green-50 text-green-600 rounded-xl">
+                    <TrendingUp className="w-6 h-6" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-500">All Time</span>
+                </div>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Total Collected</h3>
+                <div className="text-2xl font-bold text-gray-900">
+                  ৳{(!adminFeeWallet?.totalCollected || adminFeeWallet.totalCollected === 0) ? "000" : adminFeeWallet.totalCollected.toLocaleString()}
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-orange-50 text-orange-600 rounded-xl">
+                    <LogOut className="w-6 h-6" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-500">All Time</span>
+                </div>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Total Withdrawn</h3>
+                <div className="text-2xl font-bold text-gray-900">
+                  ৳{(!adminFeeWallet?.totalWithdrawn || adminFeeWallet.totalWithdrawn === 0) ? "000" : adminFeeWallet.totalWithdrawn.toLocaleString()}
+                </div>
+              </div>
+            
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                    <AlertCircle className="w-6 h-6" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-500">Uncollected</span>
+                </div>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Pending Fees</h3>
+                <div className="text-2xl font-bold text-gray-900">
+                  ৳{pendingFees === 0 ? "000" : pendingFees.toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            <AdminFeeDashboard 
+              wallet={adminFeeWallet} 
+              transactions={adminFeeTransactions} 
+              onWithdraw={adminWithdrawFee} 
+              showToast={showToast}
+            />
+          </motion.div>
+        )}
+        {activeSubTab === 'settings' && (
+        <>
         <div className="bg-[#14213D] border border-[#2A3A5C] rounded-3xl p-6 shadow-2xl max-w-md mx-auto">
           <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/10">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -746,7 +860,62 @@ export const AdminDashboard: React.FC = () => {
             </button>
           </form>
         </div>
+
+          {/* Global Announcements */}
+          <div className="bg-[#14213D] border border-[#2A3A5C] rounded-3xl p-6 shadow-2xl max-w-md mx-auto mt-6">
+            <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/10">
+              <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">Global Announcements</h3>
+                <p className="text-xs text-[#B0BBD4]">Send in-app notification to all users</p>
+              </div>
+            </div>
+            <div className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-[#B0BBD4] mb-1">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  value={announceTitle}
+                  onChange={(e) => setAnnounceTitle(e.target.value)}
+                  className="w-full bg-[#0A1128] border border-[#2A3A5C] rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#B0BBD4] mb-1">
+                  Message
+                </label>
+                <textarea
+                  value={announceMsg}
+                  onChange={(e) => setAnnounceMsg(e.target.value)}
+                  rows={3}
+                  className="w-full bg-[#0A1128] border border-[#2A3A5C] rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  if (!announceTitle || !announceMsg) return;
+                  const res = sendGlobalNotification(announceTitle, announceMsg);
+                  if (res.success) {
+                    showToast('Announcement sent to all users!', 'success');
+                    setAnnounceTitle('');
+                    setAnnounceMsg('');
+                  } else {
+                    showToast('Failed to send announcement', 'error');
+                  }
+                }}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-extrabold text-xs shadow-lg active:scale-95 transition-all mt-2 cursor-pointer"
+              >
+                Send Notification Broadcast
+              </button>
+            </div>
+          </div>
+        </>
       )}
+
 
       {/* Adjust Balance Modal */}
       {adjustingUser && (
@@ -847,6 +1016,202 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+
+
+const AdminFeeDashboard = ({ wallet, transactions, onWithdraw, showToast }: any) => {
+  const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState('bKash');
+  const [account, setAccount] = useState('');
+  const [note, setNote] = useState('');
+  const [password, setPassword] = useState('');
+  
+  // Bank specific states
+  const [bankName, setBankName] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [branch, setBranch] = useState('');
+  const [routingNumber, setRoutingNumber] = useState('');
+  
+  const handleWithdraw = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!amount || isNaN(Number(amount))) return;
+    if (!password) {
+      if (showToast) showToast('Admin PIN/Password is required', 'error');
+      return;
+    }
+    
+    let finalAccountDetails = account;
+    if (method === 'Bank') {
+      finalAccountDetails = `Bank: ${bankName}, Holder: ${accountHolder}, A/C: ${account}, Branch: ${branch}, Routing: ${routingNumber}`;
+    }
+    
+    const res = onWithdraw(Number(amount), method, finalAccountDetails, note, password);
+    if (res && res.success) {
+      setAmount('');
+      setAccount('');
+      setNote('');
+      setPassword('');
+      setBankName('');
+      setAccountHolder('');
+      setBranch('');
+      setRoutingNumber('');
+    } else if (res && showToast) {
+      showToast(res.message, 'error');
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-1">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm sticky top-24">
+          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center">
+            <LogOut className="w-5 h-5 mr-2 text-indigo-500" />
+            Withdraw Fee Balance
+          </h3>
+          <form onSubmit={handleWithdraw} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (৳)</label>
+              <input 
+                type="number" 
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                max={wallet?.feeBalance || 0}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                placeholder="0.00"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Method</label>
+              <select 
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              >
+                <option value="bKash">bKash</option>
+                <option value="Nagad">Nagad</option>
+                <option value="Rocket">Rocket</option>
+                <option value="Upay">Upay</option>
+                <option value="Bank">Bank Account</option>
+              </select>
+            </div>
+            
+            {method !== 'Bank' ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+              <input 
+                type="text" 
+                value={account}
+                onChange={(e) => setAccount(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                placeholder="e.g. 017XXXXXX"
+                required
+              />
+            </div>
+            ) : (
+            <div className="space-y-4 p-4 border border-gray-200 rounded-xl bg-gray-50/50">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500/50" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder Name</label>
+                <input type="text" value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500/50" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                <input type="text" value={account} onChange={(e) => setAccount(e.target.value)} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500/50" required />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Branch</label>
+                  <input type="text" value={branch} onChange={(e) => setBranch(e.target.value)} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500/50" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Routing Number</label>
+                  <input type="text" value={routingNumber} onChange={(e) => setRoutingNumber(e.target.value)} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500/50" required />
+                </div>
+              </div>
+            </div>
+            )}
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Admin Note (Optional)</label>
+              <input 
+                type="text" 
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                placeholder="Reference or note"
+              />
+            </div>
+            <div className="border-t border-gray-200 pt-4 mt-2">
+              <label className="block text-sm font-bold text-gray-900 mb-1 flex items-center">
+                <KeyRound className="w-4 h-4 mr-2 text-red-500" />
+                Confirm Admin PIN/Password
+              </label>
+              <input 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/50 placeholder-red-300"
+                placeholder="Enter password to authorize"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={!amount || Number(amount) <= 0 || Number(amount) > (wallet?.feeBalance || 0) || !account || !password}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-xl transition-colors"
+            >
+              Confirm Withdrawal
+            </button>
+          </form>
+        </div>
+      </div>
+      
+      <div className="lg:col-span-2">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center">
+            <Activity className="w-5 h-5 mr-2 text-indigo-500" />
+            Fee Transactions History
+          </h3>
+          <div className="space-y-4">
+            {(!transactions || transactions.length === 0) ? (
+              <div className="text-center py-8 text-gray-500">No fee transactions found.</div>
+            ) : (
+              transactions.map((tx: any) => (
+                <div key={tx.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="flex items-center space-x-4">
+                    <div className={`p-3 rounded-full ${tx.type === 'collection' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                      {tx.type === 'collection' ? <ArrowDownLeft className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900">
+                        {tx.type === 'collection' ? 'Fee Collected' : 'Admin Withdrawal'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {tx.type === 'collection' ? `From user ${tx.userId}` : `Via ${tx.method}`}
+                        <span className="mx-2">•</span>
+                        {tx.date}
+                      </div>
+                      {tx.type === 'withdrawal' && tx.note && (
+                         <div className="text-xs text-gray-400 mt-1">Note: {tx.note}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={`font-bold ${tx.type === 'collection' ? 'text-green-600' : 'text-gray-900'}`}>
+                    {tx.type === 'collection' ? '+' : '-'}৳{tx.amount.toLocaleString()}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

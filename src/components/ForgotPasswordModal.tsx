@@ -38,7 +38,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     showToast(
       lang === 'bn'
         ? `ভেরিফিকেশন কোড: ${code} (স্বয়ংক্রিয়ভাবে পূরণ করা হয়েছে)`
-        : `SMS OTP: ${code} (Auto-filled)`,
+        : `Email OTP: ${code} (Auto-filled)`,
       'info'
     );
   };
@@ -165,7 +165,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
                       : 'text-[#B0BBD4] hover:text-white'
                   }`}
                 >
-                  SMS OTP
+                  Email OTP
                 </button>
               </div>
 

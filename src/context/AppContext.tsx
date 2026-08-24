@@ -593,8 +593,17 @@ const deleteUserFromFirestore = async (phone: string) => {
     try {
       const snap = await getDocFromServer(doc(db, 'settings', 'adminCredentials'));
       if (snap.exists()) {
-        currentAdminId = snap.data().adminId || currentAdminId;
-        currentAdminPw = snap.data().adminPw || currentAdminPw;
+        const data = snap.data();
+        if (data.adminId) {
+          currentAdminId = data.adminId;
+          setAdminId(data.adminId);
+          localStorage.setItem(MASTER_ADMIN_ID_KEY, data.adminId);
+        }
+        if (data.adminPw) {
+          currentAdminPw = data.adminPw;
+          setAdminPw(data.adminPw);
+          localStorage.setItem(MASTER_ADMIN_PASS_KEY, data.adminPw);
+        }
       }
     } catch(e) {
       console.warn("Could not fetch admin credentials on login", e);
@@ -1266,19 +1275,28 @@ const buyBond = (bondId: string) => {
 
     // If it's a deposit, add funds to user's wallet
     if (req.type === 'deposit') {
-      const user = users[req.userPhone];
-      if (user) {
+      setUsers((prev) => {
+        const user = prev[req.userPhone];
+        if (!user) return prev;
+        const newNotif: NotificationItem = {
+          id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          title: 'Deposit Approved',
+          message: 'Your deposit of ৳' + req.amount + ' has been approved.',
+          date: new Date().toISOString().slice(0, 10),
+          read: false,
+          type: 'system',
+        };
         const updatedUser = {
           ...user,
           balance: user.balance + req.amount,
+          notifications: [newNotif, ...(user.notifications || [])],
         };
-        addNotification(req.userPhone, 'Deposit Approved', 'Your deposit of ৳' + req.amount + ' has been approved.');
-        setUsers((prev) => ({
+        persistUserToFirestore(updatedUser);
+        return {
           ...prev,
           [req.userPhone]: updatedUser,
-        }));
-        persistUserToFirestore(updatedUser);
-      }
+        };
+      });
 
       // Update tx status
       const txToUpdate = transactions.find((tx) => tx.userId === req.userPhone && tx.type === 'deposit' && tx.trxId === req.trxId);
@@ -1289,19 +1307,28 @@ const buyBond = (bondId: string) => {
       }
     } else if (req.type === 'withdrawal') {
       // User was already debited upon request submission, mark completed
-      const user = users[req.userPhone];
-      if (user) {
+      setUsers((prev) => {
+        const user = prev[req.userPhone];
+        if (!user) return prev;
+        const newNotif: NotificationItem = {
+          id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          title: 'Withdrawal Approved',
+          message: 'Your withdrawal of ৳' + req.amount + ' has been approved.',
+          date: new Date().toISOString().slice(0, 10),
+          read: false,
+          type: 'system',
+        };
         const updatedUser = {
           ...user,
           totalWithdrawn: user.totalWithdrawn + req.amount,
+          notifications: [newNotif, ...(user.notifications || [])],
         };
-        addNotification(req.userPhone, 'Withdrawal Approved', 'Your withdrawal of ৳' + req.amount + ' has been approved.');
-        setUsers((prev) => ({
+        persistUserToFirestore(updatedUser);
+        return {
           ...prev,
           [req.userPhone]: updatedUser,
-        }));
-        persistUserToFirestore(updatedUser);
-      }
+        };
+      });
 
       const txToUpdate = transactions.find((tx) => tx.userId === req.userPhone && tx.type === 'withdrawal' && tx.status === 'pending');
       if (txToUpdate) {
@@ -1353,19 +1380,28 @@ const buyBond = (bondId: string) => {
 
     // If it's a rejected withdrawal, refund the user balance
     if (req.type === 'withdrawal') {
-      const user = users[req.userPhone];
-      if (user) {
+      setUsers((prev) => {
+        const user = prev[req.userPhone];
+        if (!user) return prev;
+        const newNotif: NotificationItem = {
+          id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          title: 'Withdrawal Rejected',
+          message: 'Your withdrawal request of ৳' + req.amount + ' was rejected and refunded to your wallet.',
+          date: new Date().toISOString().slice(0, 10),
+          read: false,
+          type: 'system',
+        };
         const updatedUser = {
           ...user,
           balance: user.balance + req.amount,
+          notifications: [newNotif, ...(user.notifications || [])],
         };
-        addNotification(req.userPhone, 'Deposit Approved', 'Your deposit of ৳' + req.amount + ' has been approved.');
-        setUsers((prev) => ({
+        persistUserToFirestore(updatedUser);
+        return {
           ...prev,
           [req.userPhone]: updatedUser,
-        }));
-        persistUserToFirestore(updatedUser);
-      }
+        };
+      });
 
       const txToUpdate = transactions.find((tx) => tx.userId === req.userPhone && tx.type === 'withdrawal' && tx.status === 'pending');
       if (txToUpdate) {

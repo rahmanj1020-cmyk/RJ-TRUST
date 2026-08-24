@@ -1266,19 +1266,20 @@ const buyBond = (bondId: string) => {
 
     // If it's a deposit, add funds to user's wallet
     if (req.type === 'deposit') {
-      const user = users[req.userPhone];
-      if (user) {
+      setUsers((prev) => {
+        const user = prev[req.userPhone];
+        if (!user) return prev;
         const updatedUser = {
           ...user,
           balance: user.balance + req.amount,
         };
         addNotification(req.userPhone, 'Deposit Approved', 'Your deposit of ৳' + req.amount + ' has been approved.');
-        setUsers((prev) => ({
+        persistUserToFirestore(updatedUser);
+        return {
           ...prev,
           [req.userPhone]: updatedUser,
-        }));
-        persistUserToFirestore(updatedUser);
-      }
+        };
+      });
 
       // Update tx status
       const txToUpdate = transactions.find((tx) => tx.userId === req.userPhone && tx.type === 'deposit' && tx.trxId === req.trxId);
@@ -1353,19 +1354,20 @@ const buyBond = (bondId: string) => {
 
     // If it's a rejected withdrawal, refund the user balance
     if (req.type === 'withdrawal') {
-      const user = users[req.userPhone];
-      if (user) {
+      setUsers((prev) => {
+        const user = prev[req.userPhone];
+        if (!user) return prev;
         const updatedUser = {
           ...user,
           balance: user.balance + req.amount,
         };
-        addNotification(req.userPhone, 'Deposit Approved', 'Your deposit of ৳' + req.amount + ' has been approved.');
-        setUsers((prev) => ({
+        addNotification(req.userPhone, 'Withdrawal Rejected', 'Your withdrawal request of ৳' + req.amount + ' was rejected and refunded to your wallet.');
+        persistUserToFirestore(updatedUser);
+        return {
           ...prev,
           [req.userPhone]: updatedUser,
-        }));
-        persistUserToFirestore(updatedUser);
-      }
+        };
+      });
 
       const txToUpdate = transactions.find((tx) => tx.userId === req.userPhone && tx.type === 'withdrawal' && tx.status === 'pending');
       if (txToUpdate) {

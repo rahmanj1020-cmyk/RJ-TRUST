@@ -32,13 +32,15 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
       showToast(lang === 'bn' ? 'এই ফোন নম্বরে কোনো অ্যাকাউন্ট নেই' : 'No account found with this phone', 'error');
       return;
     }
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // Cryptographically secure 6-digit OTP generation using Web Crypto API
+    const array = new Uint32Array(1);
+    window.crypto.getRandomValues(array);
+    const code = (100000 + (array[0] % 900000)).toString();
     setGeneratedOtp(code);
-    setVerifyValue(code);
     showToast(
       lang === 'bn'
-        ? `ভেরিফিকেশন কোড: ${code} (স্বয়ংক্রিয়ভাবে পূরণ করা হয়েছে)`
-        : `Email OTP: ${code} (Auto-filled)`,
+        ? `ভেরিফিকেশন কোড: ${code}`
+        : `Email OTP: ${code}`,
       'info'
     );
   };

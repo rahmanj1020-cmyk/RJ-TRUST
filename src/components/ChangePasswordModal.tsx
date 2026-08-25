@@ -28,7 +28,10 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
       showToast(lang === 'bn' ? 'সঠিক ইমেইল ঠিকানা দিন' : 'Please enter a valid email address', 'error');
       return;
     }
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Cryptographically secure 6-digit OTP generation using Web Crypto API
+    const array = new Uint32Array(1);
+    window.crypto.getRandomValues(array);
+    const newOtp = (100000 + (array[0] % 900000)).toString();
     setGeneratedOtp(newOtp);
     setIsOtpSent(true);
     // In a real app, this would trigger a backend API to send an email. 

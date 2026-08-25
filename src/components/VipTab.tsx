@@ -135,7 +135,7 @@ export const VipTab: React.FC<VipTabProps> = ({ onSelectPlan }) => {
                   {plan.name}
                 </h3>
                 <div className="text-right">
-                  <span className="text-xs text-[#B0BBD4] mr-1.5">Invest:</span>
+                  <span className="text-xs text-[#B0BBD4] mr-1.5">Deposit:</span>
                   <span className="text-lg font-black text-white">
                     ৳{plan.investAmount.toLocaleString()}
                   </span>
@@ -143,6 +143,7 @@ export const VipTab: React.FC<VipTabProps> = ({ onSelectPlan }) => {
               </div>
 
               {/* Metric Grid (No Joining Bonus) */}
+              
               <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mb-4">
                 <div className="bg-black/40 rounded-xl p-2 text-center">
                   <div className="text-xs font-black text-[#2ed573]">

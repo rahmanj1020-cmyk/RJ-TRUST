@@ -101,7 +101,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw 
         <div className="my-2">
           <span className="text-3xl md:text-4xl font-black tracking-tight text-white flex items-baseline gap-1">
             <span className="text-[#FCA311] text-2xl md:text-3xl font-extrabold">৳</span>
-            <span>{currentUser.balance === 0 ? '000' : currentUser.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span>{currentUser.balance === 0 ? '00' : currentUser.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </span>
         </div>
 
@@ -109,7 +109,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw 
           <div className="flex items-center gap-1.5 text-[#B0BBD4]">
             <span>{t('commission')}:</span>
             <span className="font-bold text-[#FCA311]">
-              ৳{currentUser.commission === 0 ? '000' : currentUser.commission.toLocaleString()}
+              ৳{currentUser.commission === 0 ? '00' : currentUser.commission.toLocaleString()}
             </span>
           </div>
           <div className="flex items-center gap-1 text-[#2ed573] font-bold">
@@ -199,7 +199,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw 
                         className="text-lg font-black"
                         style={{ color: planDef?.accentColor || '#FCA311' }}
                       >
-                        ৳{inv.dailyIncome === 0 ? '000' : inv.dailyIncome.toLocaleString()}
+                        ৳{inv.dailyIncome === 0 ? '00' : inv.dailyIncome.toLocaleString()}
                       </span>
                       <span className="text-[10px] text-[#B0BBD4]">/ day profit</span>
                     </div>
@@ -328,7 +328,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw 
 
                   <div className="grid grid-cols-4 gap-2 mb-3">
                     <div className="bg-black/30 p-2 rounded-xl text-center">
-                      <div className="text-xs font-black text-red-400">৳{inv.investAmount === 0 ? '000' : inv.investAmount.toLocaleString()}</div>
+                      <div className="text-xs font-black text-red-400">৳{inv.investAmount === 0 ? '00' : inv.investAmount.toLocaleString()}</div>
                       <div className="text-[9px] text-[#B0BBD4] mt-0.5">Invested</div>
                     </div>
                     <div className="bg-black/30 p-2 rounded-xl text-center">
@@ -336,7 +336,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw 
                       <div className="text-[9px] text-[#B0BBD4] mt-0.5">Daily Profit</div>
                     </div>
                     <div className="bg-black/30 p-2 rounded-xl text-center">
-                      <div className="text-xs font-black text-[#FCA311]">৳{totalEarnedSoFar === 0 ? '000' : totalEarnedSoFar.toLocaleString()}</div>
+                      <div className="text-xs font-black text-[#FCA311]">৳{totalEarnedSoFar === 0 ? '00' : totalEarnedSoFar.toLocaleString()}</div>
                       <div className="text-[9px] text-[#B0BBD4] mt-0.5">Earned</div>
                     </div>
                     <div className="bg-black/30 p-2 rounded-xl text-center">
@@ -445,7 +445,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw 
                   </div>
 
                   <div className={`text-xs font-black ${isPositive ? 'text-[#2ed573]' : 'text-red-400'}`}>
-                    {isPositive ? '+' : ''}৳{Math.abs(tx.amount) === 0 ? '000' : Math.abs(tx.amount).toLocaleString()}
+                    {isPositive ? '+' : ''}৳{Math.abs(tx.amount) === 0 ? '00' : Math.abs(tx.amount).toLocaleString()}
                   </div>
                 </div>
               );

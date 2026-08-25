@@ -62,11 +62,12 @@ export const PlanDetailsModal: React.FC<PlanDetailsModalProps> = ({ plan, onClos
               <span className="text-[#FCA311]">৳</span>
               <span>{plan.investAmount.toLocaleString()}</span>
             </div>
-            <div className="text-xs text-amber-300 font-bold mt-1.5 flex items-center justify-center gap-1.5">
+          </div>
+
+          <div className="text-xs text-amber-300 font-bold mt-1.5 flex items-center justify-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-[#FCA311]" />
               <span>Daily Payout: 24h After Activation</span>
             </div>
-          </div>
 
           {/* Parameter Table */}
           <div className="space-y-2 text-xs divide-y divide-white/5 bg-black/30 p-3 rounded-2xl border border-white/5 mb-4">

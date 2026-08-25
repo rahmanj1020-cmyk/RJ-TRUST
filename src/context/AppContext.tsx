@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import confetti from 'canvas-confetti';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocFromServer } from 'firebase/firestore';
 import { db, testFirestoreConnection, handleFirestoreError, OperationType } from '../lib/firebase';
-import { User, Transaction, RequestItem, InvestmentPlan, PriceBondDef, SupportMessage, NotificationItem, UserInvestment, UserBond, AdminFeeWallet, AdminFeeTransaction } from '../types';
+import { User, Transaction, RequestItem, InvestmentPlan, PriceBondDef, SupportMessage, NotificationItem, UserInvestment, UserBond, AdminFeeWallet, AdminFeeTransaction , MarketingTeamMember} from '../types';
 import { RJ_PLANS, RJ_BONDS, TRANSLATIONS } from '../data/constants';
 
 interface AppContextType {
@@ -45,7 +45,10 @@ interface AppContextType {
   adminAdjustBalance: (phone: string, amount: number, note: string) => { success: boolean; message: string };
   sendGlobalNotification: (title: string, message: string) => { success: boolean; message: string };
   adminChangePassword: (newPass: string) => Promise<{ success: boolean; message: string }>;
-  adminChangeCredentials: (newAdminId: string, newPass: string) => Promise<{ success: boolean; message: string }>;
+  adminChangeCredentials: (newAdminId: string, newPass: string) => Promise<{ success: boolean;
+  marketingTeam: MarketingTeamMember[];
+  addMarketingMember: (name: string, phone: string, role: string) => void;
+  removeMarketingMember: (id: string) => void; message: string }>;
   // UI & Toast
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -70,6 +73,15 @@ const INITIAL_REQUESTS: RequestItem[] = [];
 const INITIAL_TRANSACTIONS: Transaction[] = [];
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [marketingTeam, setMarketingTeam] = useState<MarketingTeamMember[]>(() => {
+    try {
+      const saved = localStorage.getItem('rj_marketing_team');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  
   const [users, setUsers] = useState<Record<string, User>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_users');
@@ -338,6 +350,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY + '_users', JSON.stringify(users));
+      localStorage.setItem('rj_marketing_team', JSON.stringify(marketingTeam));
       localStorage.setItem(STORAGE_KEY + '_requests', JSON.stringify(requests));
       localStorage.setItem(STORAGE_KEY + '_txs', JSON.stringify(transactions));
       localStorage.setItem(STORAGE_KEY + '_feeWallet', JSON.stringify(adminFeeWallet));
@@ -1005,7 +1018,7 @@ const deleteUserFromFirestore = async (phone: string) => {
     const reward = Math.floor(Math.random() * 5) + 1; // 1 to 5 BDT
     const updatedUser = {
       ...currentUser,
-      balance: currentUser.balance + reward,
+      balance: Number(currentUser.balance || 0) + Number(reward),
       lastCheckInDate: today
     };
 
@@ -1050,12 +1063,12 @@ const deleteUserFromFirestore = async (phone: string) => {
 
     const updatedSender = {
       ...currentUser,
-      balance: currentUser.balance - amount
+      balance: Number(currentUser.balance || 0) - Number(amount || 0)
     };
     
     const updatedReceiver = {
       ...receiver,
-      balance: receiver.balance + netAmount
+      balance: Number(receiver.balance || 0) + Number(netAmount || 0)
     };
     
     const now = Date.now();
@@ -1288,7 +1301,8 @@ const buyBond = (bondId: string) => {
         };
         const updatedUser = {
           ...user,
-          balance: user.balance + req.amount,
+          balance: Number(user.balance || 0) + Number(req.amount || 0),
+          totalDeposited: Number(user.totalDeposited || 0) + Number(req.amount || 0),
           notifications: [newNotif, ...(user.notifications || [])],
         };
         persistUserToFirestore(updatedUser);
@@ -1320,7 +1334,7 @@ const buyBond = (bondId: string) => {
         };
         const updatedUser = {
           ...user,
-          totalWithdrawn: user.totalWithdrawn + req.amount,
+          totalWithdrawn: Number(user.totalWithdrawn || 0) + Number(req.amount || 0),
           notifications: [newNotif, ...(user.notifications || [])],
         };
         persistUserToFirestore(updatedUser);
@@ -1393,7 +1407,7 @@ const buyBond = (bondId: string) => {
         };
         const updatedUser = {
           ...user,
-          balance: user.balance + req.amount,
+          balance: Number(user.balance || 0) + Number(req.amount || 0),
           notifications: [newNotif, ...(user.notifications || [])],
         };
         persistUserToFirestore(updatedUser);
@@ -1663,6 +1677,23 @@ const buyBond = (bondId: string) => {
     return adminChangeCredentials(adminId, newPass);
   };
 
+  const addMarketingMember = (name: string, phone: string, role: string) => {
+    const newMember: MarketingTeamMember = {
+      id: Math.random().toString(36).substr(2, 9),
+      name,
+      phone,
+      role,
+      joinDate: new Date().toISOString()
+    };
+    setMarketingTeam(prev => [...prev, newMember]);
+    showToast('Marketing member added successfully', 'success');
+  };
+
+  const removeMarketingMember = (id: string) => {
+    setMarketingTeam(prev => prev.filter(m => m.id !== id));
+    showToast('Marketing member removed', 'success');
+  };
+
   const adminToggleUserStatus = (phone: string) => {
     const cleanPhone = phone.trim();
     const targetUser = users[cleanPhone];
@@ -1815,6 +1846,9 @@ const buyBond = (bondId: string) => {
         adminAdjustBalance,
         adminChangePassword,
         adminChangeCredentials,
+      marketingTeam,
+      addMarketingMember,
+      removeMarketingMember,
         toast,
         showToast,
         activeTab,

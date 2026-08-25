@@ -7,6 +7,7 @@ export interface User {
   commission: number;
   totalInvested: number;
   totalWithdrawn: number;
+  totalDeposited?: number;
   activePlanIndex: number; // -1 if none, 0..14
   planStartDate: string | null;
   referralCode: string;
@@ -149,4 +150,12 @@ export interface AdminFeeTransaction {
   status: 'completed' | 'pending' | 'rejected';
   date: string;
   timestamp: number;
+}
+
+export interface MarketingTeamMember {
+  id: string;
+  name: string;
+  phone: string;
+  role: string;
+  joinDate: string;
 }

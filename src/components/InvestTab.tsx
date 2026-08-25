@@ -437,7 +437,7 @@ export const InvestTab: React.FC<InvestTabProps> = ({ onSelectPlan }) => {
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-[#B0BBD4] mb-1.5 uppercase tracking-wider">Investment Amount (৳)</label>
+              <label className="block text-[11px] font-bold text-[#B0BBD4] mb-1.5 uppercase tracking-wider">Deposit Amount (৳)</label>
               <input
                 type="number"
                 value={calcAmount}
@@ -475,7 +475,7 @@ export const InvestTab: React.FC<InvestTabProps> = ({ onSelectPlan }) => {
             <TrendingUp className="w-4 h-4 text-[#FCA311]" />
             <span>{t('investTitle')}</span>
           </h3>
-          <span className="text-xs text-[#B0BBD4]">15 VIP Packages</span>
+          <span className="text-xs text-[#B0BBD4]">15 Fixed Deposit Packages</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

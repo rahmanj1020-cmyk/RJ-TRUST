@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Users, ArrowDownLeft, ArrowUpRight, CheckCircle2, XCircle, Search, Gift, Trophy, RefreshCw, KeyRound, LogOut, DollarSign, AlertCircle, Sparkles, Trash2, LineChart, Activity, TrendingUp } from 'lucide-react';
+import { Shield, ClipboardList, Users, ArrowDownLeft, ArrowUpRight, CheckCircle2, XCircle, Search, Gift, Trophy, RefreshCw, KeyRound, LogOut, DollarSign, AlertCircle, Sparkles, Trash2, LineChart, Activity, TrendingUp } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { RJ_BONDS, RJ_PLANS } from '../data/constants';
 import { User, RequestItem } from '../types';
 import { AdminCharts } from './AdminCharts';
+import { AdminRequestsView } from './AdminRequestsView';
+import { GoogleSheetsExport } from './GoogleSheetsExport';
 
 export const AdminDashboard: React.FC = () => {
   const {
@@ -29,12 +31,21 @@ export const AdminDashboard: React.FC = () => {
     showToast,
     sendGlobalNotification,
     lang,
+    marketingTeam,
+    addMarketingMember,
+    removeMarketingMember,
   } = useApp();
 
-  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'pending' | 'approved' | 'rejected' | 'users' | 'bonds' | 'fees' | 'settings'>('analytics');
+  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'requests' | 'users' | 'bonds' | 'fees' | 'audit' | 'settings' | 'marketing'>('analytics');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [bondSearchQuery, setBondSearchQuery] = useState('');
   const [selectedBondCategory, setSelectedBondCategory] = useState('b100');
+  
+  // Marketing Team modal state
+  const [marketingTeamName, setMarketingTeamName] = useState('');
+  const [marketingTeamPhone, setMarketingTeamPhone] = useState('');
+  const [marketingTeamRole, setMarketingTeamRole] = useState('');
+  const [showAddMarketing, setShowAddMarketing] = useState(false);
 
   // Balance adjustment modal state
   const [adjustingUser, setAdjustingUser] = useState<User | null>(null);
@@ -62,16 +73,16 @@ export const AdminDashboard: React.FC = () => {
 
   const totalDeposits = requests
     .filter((r) => r.type === 'deposit' && r.status === 'approved')
-    .reduce((sum, r) => sum + r.amount, 0);
+    .reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
   const totalWithdrawals = requests
     .filter((r) => r.type === 'withdrawal' && r.status === 'approved')
-    .reduce((sum, r) => sum + r.amount, 0);
+    .reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
   const pendingRequests = requests.filter((r) => r.status === 'pending');
   const pendingFees = pendingRequests
     .filter(r => r.type === 'withdrawal' && r.fee)
-    .reduce((sum, r) => sum + (r.fee || 0), 0);
+    .reduce((sum, r) => sum + Number(r.fee || 0), 0);
   const approvedRequests = requests.filter((r) => r.status === 'approved');
   const rejectedRequests = requests.filter((r) => r.status === 'rejected');
 
@@ -155,53 +166,16 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-xs text-[#B0BBD4]">Full Management, Approvals, Lottery & Ledgers</p>
           </div>
         </div>
-
         <button
           onClick={adminLogout}
-          className="px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 font-extrabold text-xs flex items-center gap-1.5 active:scale-95 transition-all"
+          className="p-2.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+          title="Exit Admin Panel"
         >
-          <LogOut className="w-4 h-4" />
-          <span>Exit Admin</span>
+          <LogOut className="w-5 h-5" />
         </button>
       </div>
 
-      {/* KPI Overview Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-[#14213D] border border-[#2A3A5C] rounded-2xl p-4 text-center">
-          <div className="text-2xl font-black text-[#FCA311]">{totalUsersCount}</div>
-          <div className="text-[10px] font-bold text-[#B0BBD4] uppercase tracking-wider mt-1">
-            Total Users
-          </div>
-        </div>
-
-        <div className="bg-[#14213D] border border-[#2A3A5C] rounded-2xl p-4 text-center">
-          <div className="text-2xl font-black text-[#2ed573]">{activeInvestorsCount}</div>
-          <div className="text-[10px] font-bold text-[#B0BBD4] uppercase tracking-wider mt-1">
-            Active Investors
-          </div>
-        </div>
-
-        <div className="bg-[#14213D] border border-[#2A3A5C] rounded-2xl p-4 text-center">
-          <div className="text-lg md:text-xl font-black text-[#FCA311]">
-            ৳{totalDeposits === 0 ? "000" : totalDeposits.toLocaleString()}
-          </div>
-          <div className="text-[10px] font-bold text-[#B0BBD4] uppercase tracking-wider mt-1">
-            Total Deposits
-          </div>
-        </div>
-
-        <div className="bg-[#14213D] border border-[#2A3A5C] rounded-2xl p-4 text-center">
-          <div className="text-lg md:text-xl font-black text-red-400">
-            ৳{totalWithdrawals === 0 ? "000" : totalWithdrawals.toLocaleString()}
-          </div>
-          <div className="text-[10px] font-bold text-[#B0BBD4] uppercase tracking-wider mt-1">
-            Total Withdrawals
-          </div>
-        </div>
-      </div>
-
-      {/* Admin Subtabs Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+      <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-2">
         <button
           onClick={() => setActiveSubTab('analytics')}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
@@ -210,19 +184,19 @@ export const AdminDashboard: React.FC = () => {
               : 'bg-[#14213D] text-[#B0BBD4] border border-[#2A3A5C] hover:text-white'
           }`}
         >
-          <Activity className="w-3.5 h-3.5" />
-          <span>Analytics & Charts</span>
+          <LineChart className="w-4 h-4" />
+          <span>Financial & Growth Analytics</span>
         </button>
 
         <button
-          onClick={() => setActiveSubTab('pending')}
+          onClick={() => setActiveSubTab('requests')}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'pending'
+            activeSubTab === 'requests'
               ? 'bg-[#FCA311] text-black shadow-lg shadow-amber-500/20'
               : 'bg-[#14213D] text-[#B0BBD4] border border-[#2A3A5C] hover:text-white'
           }`}
         >
-          <span>Pending Approvals</span>
+          <span>Requests & Approvals</span>
           {pendingRequests.length > 0 && (
             <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black">
               {pendingRequests.length}
@@ -230,27 +204,6 @@ export const AdminDashboard: React.FC = () => {
           )}
         </button>
 
-        <button
-          onClick={() => setActiveSubTab('approved')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'approved'
-              ? 'bg-[#FCA311] text-black shadow-lg shadow-amber-500/20'
-              : 'bg-[#14213D] text-[#B0BBD4] border border-[#2A3A5C] hover:text-white'
-          }`}
-        >
-          <span>Approved ({approvedRequests.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('rejected')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'rejected'
-              ? 'bg-[#FCA311] text-black shadow-lg shadow-amber-500/20'
-              : 'bg-[#14213D] text-[#B0BBD4] border border-[#2A3A5C] hover:text-white'
-          }`}
-        >
-          <span>Rejected ({rejectedRequests.length})</span>
-        </button>
 
         <button
           onClick={() => setActiveSubTab('users')}
@@ -287,6 +240,28 @@ export const AdminDashboard: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveSubTab('audit')}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            activeSubTab === 'audit'
+              ? 'bg-[#FCA311] text-black shadow-lg shadow-amber-500/20'
+              : 'bg-[#14213D] text-[#B0BBD4] border border-[#2A3A5C] hover:text-white'
+          }`}
+        >
+          <ClipboardList className="w-4 h-4" />
+          <span>Audit Log</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('marketing')}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            activeSubTab === 'marketing'
+              ? 'bg-[#FCA311] text-black shadow-lg shadow-amber-500/20'
+              : 'bg-[#14213D] text-[#B0BBD4] border border-[#2A3A5C] hover:text-white'
+          }`}
+        >
+          <span>Marketing Team</span>
+        </button>
+        <button
           onClick={() => setActiveSubTab('settings')}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'settings'
@@ -304,174 +279,17 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* Tab: Pending Requests */}
-      {activeSubTab === 'pending' && (
-        <div className="space-y-3">
-          {pendingRequests.length > 0 ? (
-            pendingRequests.map((req) => {
-              const isDeposit = req.type === 'deposit';
-
-              return (
-                <div
-                  key={req.id}
-                  className="rounded-2xl p-4 bg-[#14213D] border border-[#2A3A5C] shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                          isDeposit
-                            ? 'bg-[#2ed573]/20 text-[#2ed573] border border-[#2ed573]/40'
-                            : 'bg-red-500/20 text-red-400 border border-red-500/40'
-                        }`}
-                      >
-                        {req.type}
-                      </span>
-                      <span className="font-extrabold text-sm text-white">{req.userName}</span>
-                      <span className="text-xs text-[#B0BBD4]">({req.userPhone})</span>
-                    </div>
-
-                    <div className="text-xs text-[#B0BBD4] flex items-center gap-3 flex-wrap">
-                      <span>Method: <strong className="text-white">{req.method}</strong></span>
-                      {req.trxId && (
-                        <span>TrxID: <strong className="text-[#FCA311] font-mono">{req.trxId}</strong></span>
-                      )}
-                      {req.accountNumber && (
-                        <span>Wallet: <strong className="text-white font-mono">{req.accountNumber}</strong></span>
-                      )}
-                      <span>Date: {req.date}</span>
-                    </div>
-
-                    {!isDeposit && req.netAmount && (
-                      <div className="text-[11px] text-[#B0BBD4]">
-                        Net Payout: <strong className="text-white">৳{req.netAmount}</strong> (Fee: ৳{req.fee})
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="text-right mr-2">
-                      <div className="text-base font-black text-white">৳{req.amount.toLocaleString()}</div>
-                      <div className="text-[10px] text-amber-400 font-bold">Pending Review</div>
-                    </div>
-
-                    <button
-                      onClick={() => approveRequest(req.id)}
-                      className="px-4 py-2 rounded-xl bg-[#2ed573] hover:bg-emerald-400 text-black font-extrabold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-1"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Approve</span>
-                    </button>
-
-                    <button
-                      onClick={() => rejectRequest(req.id)}
-                      className="px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 font-extrabold text-xs active:scale-95 transition-all flex items-center gap-1"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      <span>Reject</span>
-                    </button>
-
-                    <button
-                      onClick={() => adminDeleteRequest(req.id)}
-                      title="Delete Request"
-                      className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-gray-400 hover:text-red-300 active:scale-95 transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="bg-[#14213D] border border-[#2A3A5C] rounded-2xl p-8 text-center text-[#B0BBD4] text-xs">
-              🎉 No pending requests in queue!
-            </div>
-          )}
-        </div>
+      
+      {/* Tab: Requests (Replaces Pending, Approved, Rejected) */}
+      {activeSubTab === 'requests' && (
+        <AdminRequestsView
+          requests={requests}
+          approveRequest={approveRequest}
+          rejectRequest={rejectRequest}
+          adminDeleteRequest={adminDeleteRequest}
+        />
       )}
 
-      {/* Tab: Approved Requests */}
-      {activeSubTab === 'approved' && (
-        <div className="space-y-2.5">
-          {approvedRequests.length === 0 ? (
-            <div className="bg-[#14213D] border border-[#2A3A5C] rounded-2xl p-8 text-center text-[#B0BBD4] text-xs">
-              No approved requests yet.
-            </div>
-          ) : (
-            approvedRequests.map((req) => (
-              <div
-                key={req.id}
-                className="rounded-2xl p-3.5 bg-[#14213D] border border-[#2A3A5C] flex items-center justify-between text-xs"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-white">{req.userName}</span>
-                    <span className="text-[#B0BBD4]">({req.userPhone})</span>
-                    <span className="px-2 py-0.5 rounded-full bg-[#2ed573]/20 text-[#2ed573] text-[9px] font-extrabold uppercase">
-                      {req.type} Approved
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-[#B0BBD4] mt-0.5">
-                    Method: {req.method} • {req.trxId ? `TrxID: ${req.trxId}` : `Account: ${req.accountNumber}`} • {req.date}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-black text-[#2ed573]">৳{req.amount.toLocaleString()}</span>
-                  <button
-                    onClick={() => adminDeleteRequest(req.id)}
-                    title="Delete Request"
-                    className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-300 transition-all"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Tab: Rejected Requests */}
-      {activeSubTab === 'rejected' && (
-        <div className="space-y-2.5">
-          {rejectedRequests.length === 0 ? (
-            <div className="bg-[#14213D] border border-[#2A3A5C] rounded-2xl p-8 text-center text-[#B0BBD4] text-xs">
-              No rejected requests.
-            </div>
-          ) : (
-            rejectedRequests.map((req) => (
-              <div
-                key={req.id}
-                className="rounded-2xl p-3.5 bg-[#14213D] border border-[#2A3A5C] flex items-center justify-between text-xs"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-white">{req.userName}</span>
-                    <span className="text-[#B0BBD4]">({req.userPhone})</span>
-                    <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[9px] font-extrabold uppercase">
-                      {req.type} Rejected
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-[#B0BBD4] mt-0.5">
-                    Method: {req.method} • {req.date}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-black text-red-400">৳{req.amount.toLocaleString()}</span>
-                  <button
-                    onClick={() => adminDeleteRequest(req.id)}
-                    title="Delete Request"
-                    className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-300 transition-all"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Tab: Users Management */}
       {activeSubTab === 'users' && (
         <div className="space-y-3">
           <div className="relative">
@@ -511,12 +329,18 @@ export const AdminDashboard: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-[#B0BBD4] mt-2 bg-black/30 p-2.5 rounded-xl">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-xs text-[#B0BBD4] mt-2 bg-black/30 p-2.5 rounded-xl">
                       <div>
                         ID: <span className="font-mono font-bold text-white">{u.id}</span>
                       </div>
                       <div>
                         Balance: <span className="font-bold text-[#2ed573]">৳{u.balance.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        Deposits: <span className="font-bold text-indigo-400">৳{u.totalDeposited?.toLocaleString() || '0'}</span>
+                      </div>
+                      <div>
+                        Withdraws: <span className="font-bold text-red-400">৳{u.totalWithdrawn?.toLocaleString() || '0'}</span>
                       </div>
                       <div>
                         Ref Code: <span className="font-bold text-[#FCA311]">{u.referralCode}</span>
@@ -744,7 +568,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-medium text-indigo-100 mb-1">Fee Balance</h3>
                 <div className="text-3xl font-bold">
-                  ৳{(!adminFeeWallet?.feeBalance || adminFeeWallet.feeBalance === 0) ? "000" : adminFeeWallet.feeBalance.toLocaleString()}
+                  ৳{(!adminFeeWallet?.feeBalance || adminFeeWallet.feeBalance === 0) ? "00" : adminFeeWallet.feeBalance.toLocaleString()}
                 </div>
               </div>
               
@@ -757,7 +581,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-medium text-gray-500 mb-1">Total Collected</h3>
                 <div className="text-2xl font-bold text-gray-900">
-                  ৳{(!adminFeeWallet?.totalCollected || adminFeeWallet.totalCollected === 0) ? "000" : adminFeeWallet.totalCollected.toLocaleString()}
+                  ৳{(!adminFeeWallet?.totalCollected || adminFeeWallet.totalCollected === 0) ? "00" : adminFeeWallet.totalCollected.toLocaleString()}
                 </div>
               </div>
               
@@ -770,7 +594,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-medium text-gray-500 mb-1">Total Withdrawn</h3>
                 <div className="text-2xl font-bold text-gray-900">
-                  ৳{(!adminFeeWallet?.totalWithdrawn || adminFeeWallet.totalWithdrawn === 0) ? "000" : adminFeeWallet.totalWithdrawn.toLocaleString()}
+                  ৳{(!adminFeeWallet?.totalWithdrawn || adminFeeWallet.totalWithdrawn === 0) ? "00" : adminFeeWallet.totalWithdrawn.toLocaleString()}
                 </div>
               </div>
             
@@ -783,7 +607,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-medium text-gray-500 mb-1">Pending Fees</h3>
                 <div className="text-2xl font-bold text-gray-900">
-                  ৳{pendingFees === 0 ? "000" : pendingFees.toLocaleString()}
+                  ৳{pendingFees === 0 ? "00" : pendingFees.toLocaleString()}
                 </div>
               </div>
             </div>
@@ -796,9 +620,142 @@ export const AdminDashboard: React.FC = () => {
             />
           </motion.div>
         )}
+        {activeSubTab === 'audit' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-4"
+          >
+            <div className="bg-[#14213D] border border-[#2A3A5C] rounded-3xl p-6 shadow-2xl">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                    <ClipboardList className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white">Financial Audit Log</h3>
+                    <p className="text-xs text-[#B0BBD4]">Record of manual adjustments & approvals</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {(() => {
+                  const auditLogs = transactions
+                    .filter(tx => 
+                      tx.type === 'admin_adjustment' || 
+                      (tx.type === 'deposit' && tx.status === 'approved') ||
+                      (tx.type === 'withdrawal' && tx.status === 'completed')
+                    )
+                    .sort((a, b) => (b.timestamp || new Date(b.date).getTime()) - (a.timestamp || new Date(a.date).getTime()));
+                  
+                  if (auditLogs.length === 0) {
+                    return <div className="text-center py-6 text-[#B0BBD4] text-sm font-medium">No audit records found.</div>;
+                  }
+
+                  return auditLogs.map(log => {
+                    const isAdj = log.type === 'admin_adjustment';
+                    const isDep = log.type === 'deposit';
+                    const logColor = isAdj ? 'text-amber-400' : isDep ? 'text-[#2ed573]' : 'text-indigo-400';
+                    const logIcon = isAdj ? <Activity className="w-4 h-4" /> : isDep ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />;
+                    const logBg = isAdj ? 'bg-amber-500/10 border-amber-500/20' : isDep ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-indigo-500/10 border-indigo-500/20';
+
+                    return (
+                      <div key={log.id} className={`flex items-center justify-between p-3 rounded-xl border ${logBg}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${logColor}`}>
+                            {logIcon}
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                              {isAdj ? 'Manual Adjustment' : isDep ? 'Deposit Approved' : 'Withdrawal Completed'}
+                              <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-black/40 text-[#B0BBD4]">
+                                ID: {log.userId}
+                              </span>
+                            </h4>
+                            <p className="text-[10px] text-[#B0BBD4] mt-0.5">
+                              {log.title} • {new Date(log.timestamp || log.date).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className={`text-sm font-black ${logColor}`}>
+                          {log.amount > 0 ? '+' : ''}{log.amount.toLocaleString()} ৳
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          </motion.div>
+        )}
+        {activeSubTab === 'marketing' && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="space-y-6"
+        >
+          <div className="bg-[#14213D] border border-[#2A3A5C] rounded-2xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-lg font-black text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#FCA311]" />
+                  RJ Trust Marketing Team
+                </h3>
+                <p className="text-xs text-[#B0BBD4] mt-1">Manage marketing team members and their roles</p>
+              </div>
+              <button
+                onClick={() => setShowAddMarketing(true)}
+                className="bg-[#FCA311] text-black px-4 py-2 rounded-xl text-xs font-black hover:bg-amber-400 transition-colors cursor-pointer"
+              >
+                + Add Member
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {marketingTeam.length === 0 ? (
+                <div className="text-center py-10 text-[#B0BBD4] text-sm bg-black/20 rounded-xl">
+                  No marketing team members added yet.
+                </div>
+              ) : (
+                marketingTeam.map((member) => (
+                  <div key={member.id} className="bg-black/30 p-4 rounded-xl border border-white/5 flex items-center justify-between">
+                    <div>
+                      <div className="text-white font-black">{member.name}</div>
+                      <div className="text-xs text-[#B0BBD4] mt-1">
+                        Phone: <span className="text-emerald-400 font-medium">{member.phone}</span> • Role: <span className="text-amber-400">{member.role}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to remove this team member?')) {
+                          removeMarketingMember(member.id);
+                        }
+                      }}
+                      className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-colors cursor-pointer"
+                      title="Remove Member"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </motion.div>
+        )}
         {activeSubTab === 'settings' && (
-        <>
-        <div className="bg-[#14213D] border border-[#2A3A5C] rounded-3xl p-6 shadow-2xl max-w-md mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="space-y-6 max-w-md mx-auto"
+        >
+          <GoogleSheetsExport />
+
+          <div className="bg-[#14213D] border border-[#2A3A5C] rounded-3xl p-6 shadow-2xl">
           <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/10">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
               <KeyRound className="w-5 h-5" />
@@ -913,8 +870,8 @@ export const AdminDashboard: React.FC = () => {
               </button>
             </div>
           </div>
-        </>
-      )}
+        </motion.div>
+        )}
 
 
       {/* Adjust Balance Modal */}
@@ -1016,6 +973,82 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+{/* Add Marketing Team Member Modal */}
+      {showAddMarketing && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ scale: 0.95 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0.95 }}
+            className="bg-[#14213D] w-full max-w-md rounded-3xl overflow-hidden border border-white/10"
+          >
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/20">
+              <h3 className="font-black text-white text-lg">Add Marketing Member</h3>
+              <button
+                onClick={() => setShowAddMarketing(false)}
+                className="p-1 text-white/50 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#B0BBD4] mb-1.5 ml-1">Name</label>
+                <input
+                  type="text"
+                  value={marketingTeamName}
+                  onChange={(e) => setMarketingTeamName(e.target.value)}
+                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#FCA311] transition-colors"
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#B0BBD4] mb-1.5 ml-1">Phone Number</label>
+                <input
+                  type="text"
+                  value={marketingTeamPhone}
+                  onChange={(e) => setMarketingTeamPhone(e.target.value)}
+                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#FCA311] transition-colors"
+                  placeholder="e.g. 017..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#B0BBD4] mb-1.5 ml-1">Role / Designation</label>
+                <input
+                  type="text"
+                  value={marketingTeamRole}
+                  onChange={(e) => setMarketingTeamRole(e.target.value)}
+                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#FCA311] transition-colors"
+                  placeholder="e.g. Lead Marketer"
+                />
+              </div>
+              
+              <button
+                onClick={() => {
+                  if (!marketingTeamName || !marketingTeamPhone || !marketingTeamRole) {
+                    alert('Please fill all fields');
+                    return;
+                  }
+                  addMarketingMember(marketingTeamName, marketingTeamPhone, marketingTeamRole);
+                  setMarketingTeamName('');
+                  setMarketingTeamPhone('');
+                  setMarketingTeamRole('');
+                  setShowAddMarketing(false);
+                }}
+                className="w-full py-3.5 bg-gradient-to-r from-[#FCA311] to-[#E59400] text-black rounded-xl font-black text-sm shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all"
+              >
+                Add Team Member
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
     </div>
   );
 };
@@ -1210,8 +1243,9 @@ const AdminFeeDashboard = ({ wallet, transactions, onWithdraw, showToast }: any)
               ))
             )}
           </div>
+      </div>
+
         </div>
       </div>
-    </div>
   );
 };

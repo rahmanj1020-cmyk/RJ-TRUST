@@ -629,14 +629,6 @@ const deleteUserFromFirestore = async (phone: string) => {
       return { success: true, message: 'Admin login successful' };
     }
     
-    // Hardcoded emergency fallback in case DB is totally broken or out of sync
-    if (cleanId === '1020304' && cleanPass === 'admin1234') {
-      setIsAdminLoggedIn(true);
-      setActiveTab('admin');
-      showToast('Emergency Master Admin Authenticated', 'success');
-      return { success: true, message: 'Admin login successful' };
-    }
-    
     return {
       success: false,
       message: lang === 'bn' ? 'ভুল অ্যাডমিন আইডি বা পাসওয়ার্ড' : 'Invalid Admin ID or Password',

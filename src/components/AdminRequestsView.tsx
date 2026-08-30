@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { CheckCircle2, XCircle, Trash2, ArrowDownLeft, ArrowUpRight, CheckSquare } from 'lucide-react';
-import { RequestItem } from '../types';
+import { CheckCircle2, XCircle, Trash2, ArrowDownLeft, ArrowUpRight, CheckSquare, Briefcase } from 'lucide-react';
+import { RequestItem, MarketingTeamMember } from '../types';
 
+import { User } from '../types';
 interface Props {
   requests: RequestItem[];
+  marketingTeam: MarketingTeamMember[];
+  users: Record<string, User>;
   approveRequest: (id: string) => void;
   rejectRequest: (id: string) => void;
   adminDeleteRequest: (id: string) => void;
 }
 
-export const AdminRequestsView: React.FC<Props> = ({ requests, approveRequest, rejectRequest, adminDeleteRequest }) => {
+export const AdminRequestsView: React.FC<Props> = ({ requests, marketingTeam, users, approveRequest, rejectRequest, adminDeleteRequest }) => {
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   const filteredRequests = requests
@@ -65,6 +68,7 @@ export const AdminRequestsView: React.FC<Props> = ({ requests, approveRequest, r
             const isPending = req.status === 'pending';
             const isApproved = req.status === 'approved';
             const isRejected = req.status === 'rejected';
+            const isMarketingMember = users[req.userPhone]?.isMarketingTeam || marketingTeam.some(m => m.phone === req.userPhone);
 
             return (
               <div
@@ -87,6 +91,12 @@ export const AdminRequestsView: React.FC<Props> = ({ requests, approveRequest, r
                     {isPending && <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold border border-amber-500/30">Pending</span>}
                     {isApproved && <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">Approved</span>}
                     {isRejected && <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/30">Rejected</span>}
+                    {isMarketingMember && !isDeposit && (
+                      <button type="button" className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10px] font-black shadow-lg flex items-center gap-1 active:scale-95 transition-all cursor-default">
+                        <Briefcase className="w-3 h-3" />
+                        Marketing Team Trx
+                      </button>
+                    )}
 
                     <span className="font-extrabold text-sm text-white">{req.userName}</span>
                     <span className="text-xs text-[#B0BBD4]">({req.userPhone})</span>

@@ -24,6 +24,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useApp } from '../context/AppContext';
 import { RJ_PLANS } from '../data/constants';
 import { InvestmentPlan, User } from '../types';
+import { GenerationEarningsPanel } from './GenerationEarningsPanel';
 
 interface InvestTabProps {
   onSelectPlan: (plan: InvestmentPlan) => void;
@@ -34,7 +35,6 @@ export const InvestTab: React.FC<InvestTabProps> = ({ onSelectPlan }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [showQrCode, setShowQrCode] = useState(false);
-  const [activeTierView, setActiveTierView] = useState<1 | 2 | 3>(1);
 
   // Profit Calculator State
   const [calcAmount, setCalcAmount] = useState<number | string>(300);
@@ -46,30 +46,12 @@ export const InvestTab: React.FC<InvestTabProps> = ({ onSelectPlan }) => {
   const calcWeekly = calcDaily * 7;
   const calcMonthly = calcDaily * 30;
 
-
   if (!currentUser) return null;
 
   // Generate dynamic referral link based on current browser URL
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://rjtrust.app';
   const currentPathname = typeof window !== 'undefined' ? window.location.pathname : '/';
   const referralUrl = `${currentOrigin}${currentPathname}?ref=${currentUser.referralCode}`;
-
-  // Calculate total referral bonus earned from transactions
-  const referralBonusEarned = transactions
-    .filter((tx) => tx.userId === currentUser.phone && tx.type === 'referral_commission')
-    .reduce((sum, tx) => sum + tx.amount, 0);
-
-  // Multi-tier referral members
-  const allUsersList = Object.values(users) as User[];
-  const gen1Members = allUsersList.filter((u) => u.referredByPhone === currentUser.phone);
-  const gen2Members = allUsersList.filter((u) =>
-    gen1Members.some((g1) => g1.phone === u.referredByPhone)
-  );
-  const gen3Members = allUsersList.filter((u) =>
-    gen2Members.some((g2) => g2.phone === u.referredByPhone)
-  );
-
-  const totalTeamMembers = gen1Members.length + gen2Members.length + gen3Members.length;
 
   const handleCopyLink = () => {
     if (navigator.clipboard) {
@@ -275,128 +257,8 @@ export const InvestTab: React.FC<InvestTabProps> = ({ onSelectPlan }) => {
         </AnimatePresence>
       </motion.div>
 
-      {/* 3-Tier Multi-Level Earnings Commission Cards */}
-      <div className="p-4 rounded-3xl bg-[#14213D] border border-[#2A3A5C] shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-xs font-black uppercase tracking-wider text-amber-200 flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-[#FCA311]" />
-            <span>3-Generation Commission Structure</span>
-          </div>
-          <span className="text-[10px] text-emerald-400 font-bold">Lifetime Residuals</span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 text-center text-xs mb-3">
-          <div
-            onClick={() => setActiveTierView(1)}
-            className={`p-3 rounded-2xl border cursor-pointer transition-all ${
-              activeTierView === 1
-                ? 'bg-[#FCA311]/15 border-[#FCA311] shadow-lg shadow-amber-500/10'
-                : 'bg-black/30 border-white/5 hover:border-white/20'
-            }`}
-          >
-            <div className="font-black text-[#FCA311] text-base">5%</div>
-            <div className="text-[10px] font-bold text-white mt-0.5">Tier 1 (Direct)</div>
-            <div className="text-[9px] text-[#B0BBD4] mt-0.5">{gen1Members.length} Members</div>
-          </div>
-
-          <div
-            onClick={() => setActiveTierView(2)}
-            className={`p-3 rounded-2xl border cursor-pointer transition-all ${
-              activeTierView === 2
-                ? 'bg-[#2ed573]/15 border-[#2ed573] shadow-lg shadow-emerald-500/10'
-                : 'bg-black/30 border-white/5 hover:border-white/20'
-            }`}
-          >
-            <div className="font-black text-[#2ed573] text-base">3%</div>
-            <div className="text-[10px] font-bold text-white mt-0.5">Tier 2 (Sub)</div>
-            <div className="text-[9px] text-[#B0BBD4] mt-0.5">{gen2Members.length} Members</div>
-          </div>
-
-          <div
-            onClick={() => setActiveTierView(3)}
-            className={`p-3 rounded-2xl border cursor-pointer transition-all ${
-              activeTierView === 3
-                ? 'bg-cyan-400/15 border-cyan-400 shadow-lg shadow-cyan-500/10'
-                : 'bg-black/30 border-white/5 hover:border-white/20'
-            }`}
-          >
-            <div className="font-black text-cyan-300 text-base">2%</div>
-            <div className="text-[10px] font-bold text-white mt-0.5">Tier 3 (Team)</div>
-            <div className="text-[9px] text-[#B0BBD4] mt-0.5">{gen3Members.length} Members</div>
-          </div>
-        </div>
-
-        {/* Team Overview Stats */}
-        <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-white/5">
-          <div className="bg-black/40 p-2 rounded-xl">
-            <div className="text-sm font-black text-[#FCA311]">{totalTeamMembers}</div>
-            <div className="text-[9px] text-[#B0BBD4] font-medium">Total Team</div>
-          </div>
-          <div className="bg-black/40 p-2 rounded-xl">
-            <div className="text-sm font-black text-[#2ed573]">
-              ৳{referralBonusEarned.toLocaleString()}
-            </div>
-            <div className="text-[9px] text-[#B0BBD4] font-medium">{t('refBonus')}</div>
-          </div>
-          <div className="bg-black/40 p-2 rounded-xl">
-            <div className="text-sm font-black text-cyan-300">
-              {currentUser.referralCount || 0}
-            </div>
-            <div className="text-[9px] text-[#B0BBD4] font-medium">Direct Invites</div>
-          </div>
-        </div>
-
-        {/* Active Tier Team Member List */}
-        <div className="mt-3 pt-3 border-t border-white/10">
-          <div className="text-[11px] font-bold text-[#B0BBD4] mb-2 flex items-center justify-between">
-            <span>
-              {activeTierView === 1 && `Tier 1 Direct Referrals (${gen1Members.length})`}
-              {activeTierView === 2 && `Tier 2 Sub-Referrals (${gen2Members.length})`}
-              {activeTierView === 3 && `Tier 3 Team Referrals (${gen3Members.length})`}
-            </span>
-            <span className="text-[10px] text-amber-400">
-              {activeTierView === 1 ? '5% Commission' : activeTierView === 2 ? '3% Commission' : '2% Commission'}
-            </span>
-          </div>
-
-          {((activeTierView === 1 && gen1Members.length === 0) ||
-            (activeTierView === 2 && gen2Members.length === 0) ||
-            (activeTierView === 3 && gen3Members.length === 0)) ? (
-            <div className="py-4 text-center text-xs text-gray-400 bg-black/20 rounded-xl border border-dashed border-white/5">
-              {lang === 'bn'
-                ? 'এই স্তরে এখনও কোনো সদস্য যোগ দেয়নি। রেফারেল লিংক শেয়ার করুন!'
-                : 'No members in this tier yet. Share your referral link to build your team!'}
-            </div>
-          ) : (
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {(activeTierView === 1 ? gen1Members : activeTierView === 2 ? gen2Members : gen3Members).map(
-                (member) => (
-                  <div
-                    key={member.phone}
-                    className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-[#FCA311]/20 text-[#FCA311] flex items-center justify-center font-bold text-xs">
-                        {member.fullName.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="font-bold text-white">{member.fullName}</div>
-                        <div className="text-[10px] text-[#B0BBD4]">{member.phone.slice(0, 3)}••••{member.phone.slice(-4)}</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2ed573]/20 text-[#2ed573] inline-block">
-                        Active
-                      </div>
-                      <div className="text-[9px] text-[#B0BBD4] mt-0.5">Joined: {member.createdAt}</div>
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* 3-Generation Total Earnings & Team Panel */}
+      <GenerationEarningsPanel />
 
       
       {/* Interactive Profit Calculator */}
@@ -517,20 +379,26 @@ export const InvestTab: React.FC<InvestTabProps> = ({ onSelectPlan }) => {
                     {plan.name}
                   </h4>
 
-                  <div className="grid grid-cols-3 gap-1.5 text-center text-xs mb-3 bg-black/30 p-2 rounded-xl">
+                  <div className="grid grid-cols-4 gap-1 text-center text-xs mb-3 bg-black/30 p-2 rounded-xl">
                     <div>
-                      <div className="font-black text-[#2ed573]">৳{plan.dailyIncome}</div>
-                      <div className="text-[9px] text-[#B0BBD4]">{t('dailyIncome')}</div>
+                      <div className="font-black text-[#2ed573]">৳{plan.dailyIncome.toLocaleString()}</div>
+                      <div className="text-[8px] sm:text-[9px] text-[#B0BBD4] whitespace-nowrap overflow-hidden text-ellipsis">{t('dailyIncome')}</div>
                     </div>
                     <div>
-                      <div className="font-black text-white">{plan.days} d</div>
-                      <div className="text-[9px] text-[#B0BBD4]">{t('duration')}</div>
+                      <div className="font-black text-white">{plan.days}d</div>
+                      <div className="text-[8px] sm:text-[9px] text-[#B0BBD4] whitespace-nowrap overflow-hidden text-ellipsis">{t('duration')}</div>
                     </div>
                     <div>
                       <div className="font-black text-[#FCA311]">
-                        ৳{plan.dailyIncome * plan.days}
+                        ৳{(plan.dailyIncome * plan.days).toLocaleString()}
                       </div>
-                      <div className="text-[9px] text-[#B0BBD4]">{t('totalReturn')}</div>
+                      <div className="text-[8px] sm:text-[9px] text-[#B0BBD4] whitespace-nowrap overflow-hidden text-ellipsis">{t('totalReturn')}</div>
+                    </div>
+                    <div>
+                      <div className="font-black text-emerald-400">
+                        ৳{((plan.dailyIncome * plan.days) - plan.investAmount).toLocaleString()}
+                      </div>
+                      <div className="text-[8px] sm:text-[9px] text-[#B0BBD4] whitespace-nowrap overflow-hidden text-ellipsis">{t('netProfit')}</div>
                     </div>
                   </div>
                 </div>

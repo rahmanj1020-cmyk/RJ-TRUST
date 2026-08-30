@@ -1,8 +1,27 @@
+export interface SecurityLogItem {
+  id: string;
+  action: string;
+  actionBn: string;
+  timestamp: number;
+  date: string;
+  deviceInfo: string;
+  ip?: string;
+  status: 'success' | 'warning' | 'failed';
+}
+
 export interface User {
   id: string; // 9-digit account ID
   phone: string;
+  email?: string; // Newly added for Gmail verification
+  isMarketingTeam?: boolean;
   fullName: string;
   password: string;
+  securityPin?: string; // 4-digit numeric Transaction & Security PIN
+  isPinEnabled?: boolean; // Whether PIN verification is required for funds transfer/withdrawal
+  autoLockMinutes?: number; // 0 = off, 5, 15, 30
+  securityLogs?: SecurityLogItem[];
+  lastLoginTime?: string;
+  lastLoginDevice?: string;
   balance: number;
   commission: number;
   totalInvested: number;
@@ -19,6 +38,7 @@ export interface User {
   lastClaimTimestamp?: Record<number, number>; // planIndex -> timestamp ms
   investments: UserInvestment[];
   bonds: UserBond[];
+  fds?: FixedDeposit[];
   lastCheckInDate?: string;
   notifications?: NotificationItem[];
 }
@@ -80,10 +100,23 @@ export interface UserBond {
   prizeAmount?: number;
 }
 
+export interface FixedDeposit {
+  id: string;
+  principal: number;
+  monthlyRate: number; // e.g. 7.5
+  startDate: string; // YYYY-MM-DD
+  maturityDate: string; // YYYY-MM-DD
+  activatedAt: number; // timestamp
+  maturityAt: number; // timestamp
+  lastClaimedAt?: number;
+  totalClaimed: number;
+  status: 'active' | 'matured' | 'closed';
+}
+
 export interface Transaction {
   id: string;
   userId: string;
-  type: 'deposit' | 'withdrawal' | 'investment' | 'daily_income' | 'bonus' | 'referral_commission' | 'bond_purchase' | 'bond_prize' | 'bond_refund' | 'admin_adjustment';
+  type: 'deposit' | 'withdrawal' | 'investment' | 'daily_income' | 'bonus' | 'referral_commission' | 'bond_purchase' | 'bond_prize' | 'bond_refund' | 'admin_adjustment' | 'fd_deposit' | 'fd_profit';
   title: string;
   titleBn: string;
   amount: number; // positive or negative
@@ -113,13 +146,33 @@ export interface RequestItem {
   adminNotes?: string;
 }
 
+export interface GroundingSource {
+  title: string;
+  uri: string;
+}
+
 export interface SupportMessage {
   id: string;
   sender: 'user' | 'support' | 'bot';
   text: string;
   timestamp: string;
   userPhone?: string;
+  sources?: GroundingSource[];
+  isSearchingWeb?: boolean;
 }
+
+export interface AIPortfolioAnalysis {
+  analysis: string;
+  sources: GroundingSource[];
+  generatedAt: string;
+}
+
+export interface AIMarketPulse {
+  pulse: string;
+  sources: GroundingSource[];
+  updatedAt: string;
+}
+
 
 export interface NotificationItem {
   id: string;
@@ -158,4 +211,5 @@ export interface MarketingTeamMember {
   phone: string;
   role: string;
   joinDate: string;
+  accountId?: string;
 }

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Lock, KeyRound, Mail, CheckCircle2 } from 'lucide-react';
+import { X, KeyRound } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { hashPassword } from '../utils/crypto';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -14,42 +15,20 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
-  
-  // Email OTP state
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [isOtpSent, setIsOtpSent] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState('');
 
   if (!isOpen || !currentUser) return null;
-
-  const handleSendOtp = () => {
-    if (!email || !email.includes('@')) {
-      showToast(lang === 'bn' ? 'সঠিক ইমেইল ঠিকানা দিন' : 'Please enter a valid email address', 'error');
-      return;
-    }
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(newOtp);
-    setIsOtpSent(true);
-    // In a real app, this would trigger a backend API to send an email. 
-    // For demo purposes, we show it in the toast.
-    showToast(`OTP sent to ${email} (Demo: ${newOtp})`, 'success');
-  };
 
   const handleClose = () => {
     setCurrentPass('');
     setNewPass('');
     setConfirmPass('');
-    setEmail('');
-    setOtp('');
-    setIsOtpSent(false);
-    setGeneratedOtp('');
     onClose();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentPass !== currentUser.password) {
+    const hashedCurrent = await hashPassword(currentPass);
+    if (currentPass !== currentUser.password && hashedCurrent !== currentUser.password) {
       showToast(lang === 'bn' ? 'বর্তমান পাসওয়ার্ড সঠিক নয়' : 'Current password incorrect', 'error');
       return;
     }
@@ -61,17 +40,13 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
       showToast(lang === 'bn' ? 'পাসওয়ার্ড দুটি মিলছে না' : 'Passwords do not match', 'error');
       return;
     }
-    if (!isOtpSent) {
-      showToast(lang === 'bn' ? 'প্রথমে OTP পাঠান' : 'Please send OTP first', 'error');
-      return;
-    }
-    if (otp !== generatedOtp) {
-      showToast(lang === 'bn' ? 'OTP ভুল' : 'Invalid OTP entered', 'error');
-      return;
-    }
 
-    resetPassword(currentUser.phone, currentUser.id, newPass);
-    handleClose();
+    const res = await resetPassword(currentUser.phone, currentUser.id, newPass, 'id');
+    if (res.success) {
+      handleClose();
+    } else {
+      showToast(res.message, 'error');
+    }
   };
 
   return (
@@ -87,7 +62,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
             <div className="flex items-center gap-2">
               <KeyRound className="w-5 h-5 text-[#FCA311]" />
               <h3 className="font-extrabold text-sm text-white">
-                Change Account Password
+                {lang === 'bn' ? 'পাসওয়ার্ড পরিবর্তন করুন' : 'Change Account Password'}
               </h3>
             </div>
             <button onClick={handleClose} className="p-1 text-[#B0BBD4] hover:text-white">
@@ -98,95 +73,48 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div>
               <label className="block text-xs font-semibold text-[#B0BBD4] mb-1">
-                Current Password
+                {lang === 'bn' ? 'বর্তমান পাসওয়ার্ড' : 'Current Password'}
               </label>
               <input
                 type="password"
                 value={currentPass}
                 onChange={(e) => setCurrentPass(e.target.value)}
-                placeholder="Enter current password"
+                placeholder={lang === 'bn' ? 'বর্তমান পাসওয়ার্ড দিন' : 'Enter current password'}
                 className="w-full bg-[#0A1128] border border-[#2A3A5C] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#FCA311]"
               />
             </div>
 
             <div className="border-t border-white/5 pt-3 mt-1">
               <label className="block text-xs font-semibold text-[#B0BBD4] mb-1">
-                Email Address (For OTP Verification)
-              </label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isOtpSent}
-                    placeholder="Enter email to receive OTP"
-                    className="w-full bg-[#0A1128] border border-[#2A3A5C] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#FCA311] disabled:opacity-50"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  disabled={isOtpSent}
-                  className="px-4 bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-700 text-white text-xs font-bold rounded-xl transition-colors"
-                >
-                  {isOtpSent ? <CheckCircle2 className="w-4 h-4" /> : 'Send'}
-                </button>
-              </div>
-            </div>
-
-            {isOtpSent && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="overflow-hidden"
-              >
-                <label className="block text-xs font-semibold text-[#B0BBD4] mb-1">
-                  Enter 6-Digit Email OTP
-                </label>
-                <input
-                  type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="Enter OTP"
-                  maxLength={6}
-                  className="w-full bg-[#0A1128] border border-[#2A3A5C] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#FCA311] tracking-widest text-center font-mono"
-                />
-              </motion.div>
-            )}
-
-            <div className="border-t border-white/5 pt-3 mt-1">
-              <label className="block text-xs font-semibold text-[#B0BBD4] mb-1">
-                New Password
+                {lang === 'bn' ? 'নতুন পাসওয়ার্ড' : 'New Password'}
               </label>
               <input
                 type="password"
                 value={newPass}
                 onChange={(e) => setNewPass(e.target.value)}
-                placeholder="Min 6 characters"
+                placeholder={lang === 'bn' ? 'কমপক্ষে ৬ অক্ষর' : 'Min 6 characters'}
                 className="w-full bg-[#0A1128] border border-[#2A3A5C] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#FCA311]"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-[#B0BBD4] mb-1">
-                Confirm New Password
+                {lang === 'bn' ? 'নতুন পাসওয়ার্ড নিশ্চিত করুন' : 'Confirm New Password'}
               </label>
               <input
                 type="password"
                 value={confirmPass}
                 onChange={(e) => setConfirmPass(e.target.value)}
-                placeholder="Re-enter new password"
+                placeholder={lang === 'bn' ? 'পুনরায় নতুন পাসওয়ার্ড দিন' : 'Re-enter new password'}
                 className="w-full bg-[#0A1128] border border-[#2A3A5C] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#FCA311]"
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#FCA311] to-[#e0900a] text-black font-extrabold text-xs shadow-lg active:scale-95 transition-all mt-2"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#FCA311] to-[#e0900a] text-black font-extrabold text-xs shadow-lg active:scale-95 transition-all mt-2 cursor-pointer hover:brightness-105"
             >
-              Update Password
+              {lang === 'bn' ? 'পাসওয়ার্ড আপডেট করুন' : 'Update Password'}
             </button>
           </form>
         </motion.div>

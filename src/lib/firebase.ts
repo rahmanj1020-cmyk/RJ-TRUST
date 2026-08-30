@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -9,8 +9,8 @@ const config: any = firebaseConfig;
 
 /* CRITICAL: Must pass firebaseConfig.firestoreDatabaseId if specified */
 export const db = config.firestoreDatabaseId
-  ? getFirestore(app, config.firestoreDatabaseId)
-  : getFirestore(app);
+  ? initializeFirestore(app, { ignoreUndefinedProperties: true }, config.firestoreDatabaseId)
+  : initializeFirestore(app, { ignoreUndefinedProperties: true });
 
 export const auth = getAuth(app);
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Lock, Phone, User as UserIcon, UserPlus, LogIn, KeyRound, Sparkles, Shield, ArrowRight, CheckCircle2, Gift } from 'lucide-react';
+import { Lock, Phone, User as UserIcon, UserPlus, LogIn, KeyRound, Sparkles, Shield, ArrowRight, CheckCircle2, Gift, Sun, Moon, Mail } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface AuthScreenProps {
@@ -9,7 +9,7 @@ interface AuthScreenProps {
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onOpenForgotPassword, onOpenAdminLogin }) => {
-  const { login, register, lang, setLang, t, showToast } = useApp();
+  const { login, register, lang, setLang, t, showToast, theme, toggleTheme } = useApp();
   const [tab, setTab] = useState<'login' | 'register'>('login');
 
   // Login form state
@@ -19,10 +19,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onOpenForgotPassword, on
   // Register form state
   const [regFullName, setRegFullName] = useState('');
   const [regPhone, setRegPhone] = useState('');
-  const [regPassword, setRegPassword] = useState('');
+    const [regPassword, setRegPassword] = useState('');
   const [regReferralCode, setRegReferralCode] = useState('');
   const [isFromRefLink, setIsFromRefLink] = useState(false);
-
+    
   const [loading, setLoading] = useState(false);
 
   // Auto-detect referral code from URL query parameter (e.g. ?ref=RJ1234 or #ref=RJ1234)
@@ -54,27 +54,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onOpenForgotPassword, on
     }
   }, [lang]);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginPhone || !loginPassword) {
       showToast(lang === 'bn' ? 'ফোন নম্বর ও পাসওয়ার্ড দিন' : 'Enter phone and password', 'error');
       return;
     }
     setLoading(true);
-    const res = login(loginPhone, loginPassword);
+    const res = await login(loginPhone, loginPassword);
     setLoading(false);
     if (!res.success) {
       showToast(res.message, 'error');
     }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+      const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const res = register(regFullName, regPhone, regPassword, regReferralCode);
-    setLoading(false);
-    if (!res.success) {
-      showToast(res.message, 'error');
+    try {
+      const res = await register(regFullName, regPhone, '', regPassword, regReferralCode);
+      if (!res.success) {
+        showToast(res.message, 'error');
+      }
+    } catch (error) {
+      showToast('Error registering', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -84,11 +89,26 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onOpenForgotPassword, on
       <div className="absolute top-10 left-1/2 -translate-x-1/2 w-80 h-80 bg-[#FCA311]/10 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-[#14213D]/40 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* Language Switcher Float */}
-      <div className="absolute top-4 right-4 z-20">
+      {/* Top Action Controls Float */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className={`p-2 rounded-full border transition-all active:scale-95 cursor-pointer shadow-sm flex items-center justify-center ${
+            theme === 'light'
+              ? 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-800'
+              : 'bg-white/10 hover:bg-white/15 border-[#2A3A5C] text-amber-400'
+          }`}
+          title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to High-Contrast Light Mode'}
+          aria-label="Toggle Theme"
+        >
+          {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+        </button>
+
+        {/* Language Switcher */}
         <button
           onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}
-          className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-[#2A3A5C] text-xs font-bold text-[#FCA311] transition-all"
+          className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-[#2A3A5C] text-xs font-bold text-[#FCA311] transition-all cursor-pointer"
         >
           {lang === 'bn' ? 'English (EN)' : 'বাংলা (বাং)'}
         </button>
@@ -230,6 +250,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onOpenForgotPassword, on
                 </div>
               </div>
 
+              
               <div>
                 <label className="block text-xs font-semibold text-[#B0BBD4] mb-1">
                   {t('phone')}

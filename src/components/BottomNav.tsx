@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Crown, TrendingUp, Ticket, User as UserIcon, ReceiptText, Shield } from 'lucide-react';
+import { Home, Crown, TrendingUp, Ticket, User as UserIcon, ReceiptText, Shield, Landmark } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const BottomNav: React.FC = () => {
@@ -9,6 +9,7 @@ export const BottomNav: React.FC = () => {
     { id: 'home', label: t('home'), icon: Home },
     { id: 'vip', label: 'VIP', icon: Crown },
     { id: 'invest', label: t('invest'), icon: TrendingUp },
+    { id: 'fd', label: 'FD', icon: Landmark },
     { id: 'bond', label: t('bond'), icon: Ticket },
     { id: 'tx', label: 'TX', icon: ReceiptText },
     { id: 'account', label: t('account'), icon: UserIcon },

@@ -17,6 +17,8 @@ import {
   Link as LinkIcon,
   Share2,
   Users,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ReferralsModal } from './ReferralsModal';
@@ -34,17 +36,32 @@ export const AccountTab: React.FC<AccountTabProps> = ({
   onOpenWithdraw,
   onOpenChangePassword,
 }) => {
-  const { currentUser, logout, t, lang, setActiveTab, showToast } = useApp();
+  const { currentUser, logout, t, lang, setActiveTab, showToast, theme, toggleTheme, marketingTeam, setIsSecurityModalOpen } = useApp();
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedAccountId, setCopiedAccountId] = useState(false);
   const [showReferralsModal, setShowReferralsModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   if (!currentUser) return null;
 
+  const matchedMarketingMember = marketingTeam?.find(
+    (m) => m.phone === currentUser.phone || m.accountId === currentUser.id
+  );
+
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://rjtrust.app';
   const currentPathname = typeof window !== 'undefined' ? window.location.pathname : '/';
   const referralUrl = `${currentOrigin}${currentPathname}?ref=${currentUser.referralCode}`;
+
+  const handleCopyAccountId = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(currentUser.id);
+      setCopiedAccountId(true);
+      showToast(lang === 'bn' ? 'অ্যাকাউন্ট আইডি কপি করা হয়েছে!' : 'Account ID copied to clipboard!', 'success');
+      setTimeout(() => setCopiedAccountId(false), 2500);
+    }
+  };
 
   const handleCopyLink = () => {
     if (navigator.clipboard) {
@@ -99,12 +116,65 @@ export const AccountTab: React.FC<AccountTabProps> = ({
 
         <h2 className="text-xl font-black text-white">{currentUser.fullName}</h2>
         <p className="text-xs font-semibold text-[#B0BBD4] mt-0.5">{currentUser.phone}</p>
-        <p className="text-[11px] text-[#B0BBD4] font-mono mt-0.5">
-          Account ID: <span className="font-bold text-white">{currentUser.id}</span>
-        </p>
 
-        <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/50 border border-[#FCA311]/40 text-xs font-black text-[#FCA311]">
-          <span>VIP {currentUser.activePlanIndex >= 0 ? currentUser.activePlanIndex + 1 : 0} Member</span>
+        {/* Account ID Pill with One-Click Copy */}
+        <div className="mt-2 flex items-center justify-center">
+          <div
+            onClick={() => handleCopyAccountId()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleCopyAccountId();
+              }
+            }}
+            className="group inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 hover:bg-black/60 border border-white/10 hover:border-amber-400/40 text-xs font-mono text-[#B0BBD4] cursor-pointer transition-all active:scale-95 shadow-sm"
+            title="Click to copy Account ID"
+          >
+            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+              Account ID:
+            </span>
+            <span className="font-bold text-white font-mono group-hover:text-amber-400 transition-colors">
+              #{currentUser.id}
+            </span>
+            <button
+              type="button"
+              onClick={handleCopyAccountId}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold font-sans transition-all cursor-pointer ${
+                copiedAccountId
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-amber-500/15 group-hover:bg-amber-500/25 text-amber-400 border border-amber-500/30'
+              }`}
+              aria-label="Copy Account ID"
+            >
+              {copiedAccountId ? (
+                <>
+                  <Check className="w-3 h-3 text-emerald-400" />
+                  <span>{lang === 'bn' ? 'কপি হয়েছে' : 'Copied'}</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3 text-amber-400" />
+                  <span>{lang === 'bn' ? 'কপি' : 'Copy'}</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Badges: VIP + Marketing Badge if applicable */}
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/50 border border-[#FCA311]/40 text-xs font-black text-[#FCA311]">
+            <span>VIP {currentUser.activePlanIndex >= 0 ? currentUser.activePlanIndex + 1 : 0} Member</span>
+          </div>
+
+          {matchedMarketingMember && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-xs font-black text-emerald-300">
+              <Sparkles className="w-3 h-3 text-emerald-400" />
+              <span>{matchedMarketingMember.role || 'Marketing Team'}</span>
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -257,6 +327,62 @@ export const AccountTab: React.FC<AccountTabProps> = ({
           </div>
           <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-white" />
         </a>
+
+        {/* Theme Mode Toggle Item */}
+        <button
+          onClick={toggleTheme}
+          className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all text-left group"
+        >
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+              theme === 'light' ? 'bg-amber-500/20 text-amber-600' : 'bg-amber-500/15 text-[#FCA311]'
+            }`}>
+              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            </div>
+            <div>
+              <span className="text-xs md:text-sm font-bold text-white group-hover:text-[#FCA311] block">
+                {t('themeToggle')}
+              </span>
+              <span className="text-[10px] text-[#B0BBD4]">
+                {theme === 'light' ? t('lightMode') : t('darkMode')}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+              theme === 'light'
+                ? 'bg-amber-100 border-amber-300 text-amber-800'
+                : 'bg-black/40 border-white/10 text-amber-400'
+            }`}>
+              {theme === 'light' ? 'Light' : 'Dark'}
+            </span>
+            <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-white" />
+          </div>
+        </button>
+
+        {/* Security & Privacy Shield Button */}
+        <button
+          onClick={() => setIsSecurityModalOpen(true)}
+          className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all text-left group bg-gradient-to-r from-emerald-500/5 via-transparent to-transparent"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shadow-md shadow-emerald-500/10">
+              <Shield className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-xs md:text-sm font-bold text-white group-hover:text-emerald-300 flex items-center gap-2">
+                {lang === 'bn' ? 'নিরাপত্তা ও গোপনীয়তা শিল্ড' : 'Security & Privacy Shield'}
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-extrabold">
+                  {currentUser.securityPin ? 'PIN ACTIVE' : 'PROTECTED'}
+                </span>
+              </span>
+              <span className="text-[10px] text-[#B0BBD4]">
+                {lang === 'bn' ? '৪ ডিজিট পিন, সেশন ও ডিভাইস নিরাপত্তা' : '4-Digit PIN, Active Sessions & Auto-Lock'}
+              </span>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
+        </button>
 
         <button
           onClick={onOpenChangePassword}

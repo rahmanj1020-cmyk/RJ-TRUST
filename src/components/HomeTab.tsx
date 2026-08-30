@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { RJ_PLANS } from '../data/constants';
+import { LiveActivityTicker } from './LiveActivityTicker';
 
 interface HomeTabProps {
   onOpenDeposit: () => void;
@@ -26,7 +27,7 @@ interface HomeTabProps {
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw }) => {
-  const { currentUser, transactions, t, lang, claimDailyIncome, dailyCheckIn, setActiveTab, showToast } = useApp();
+  const { currentUser, transactions, marketingTeam, t, lang, theme, claimDailyIncome, dailyCheckIn, setActiveTab, showToast } = useApp();
   const [now, setNow] = useState(Date.now());
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -119,7 +120,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw 
         </div>
       </motion.div>
 
-      {/* Action Buttons: Deposit & Withdraw */}
+      {/* Action Buttons: Deposit, Withdraw & P2P */}
       <div className="grid grid-cols-3 gap-3">
         <button
           onClick={onOpenDeposit}
@@ -145,6 +146,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw 
           <span>P2P Transfer</span>
         </button>
       </div>
+
+      {/* Fake Live Activity Tracker */}
+      <LiveActivityTicker />
 
       {/* Daily Claim Section */}
       {currentUser.investments && currentUser.investments.length > 0 && (
@@ -400,6 +404,59 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onOpenDeposit, onOpenWithdraw 
           </button>
         </div>
       </div>
+
+      {/* Official Marketing Team Bar / Showcase */}
+      {marketingTeam && marketingTeam.length > 0 && (
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-[#FCA311]" />
+              <h3 className="text-xs font-black uppercase tracking-wider text-[#B0BBD4]">
+                {lang === 'bn' ? 'মার্কেটিং টিম সদস্য' : 'Official Marketing Team'}
+              </h3>
+            </div>
+            <span className="text-[10px] text-amber-400 font-bold bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+              {marketingTeam.length} {lang === 'bn' ? 'জন সদস্য' : 'Members'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {marketingTeam.map((member) => (
+              <div
+                key={member.id}
+                className="bg-[#14213D] border border-[#2A3A5C] hover:border-amber-400/40 rounded-2xl p-3.5 shadow-lg flex items-center justify-between transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500/20 to-amber-400/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black text-sm shadow-inner">
+                    {member.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-white">{member.name}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-bold">
+                        ID: #{member.accountId || member.id.slice(0, 8)}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-[#B0BBD4] mt-0.5 flex items-center gap-1.5">
+                      <span className="text-amber-400 font-medium">{member.role}</span>
+                      <span>•</span>
+                      <span className="font-mono text-gray-300">{member.phone}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <a
+                  href={`tel:${member.phone}`}
+                  className="p-2 rounded-xl bg-[#FCA311]/15 text-[#FCA311] hover:bg-[#FCA311] hover:text-black border border-[#FCA311]/30 transition-all flex items-center justify-center text-xs"
+                  title="Contact Marketer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Transactions */}
       <div className="space-y-2 pt-1">

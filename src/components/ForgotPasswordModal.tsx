@@ -37,8 +37,8 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     setVerifyValue(code);
     showToast(
       lang === 'bn'
-        ? `ভেরিফিকেশন কোড: ${code} (স্বয়ংক্রিয়ভাবে পূরণ করা হয়েছে)`
-        : `Email OTP: ${code} (Auto-filled)`,
+        ? `নিরাপত্তা কোড: ${code} (স্বয়ংক্রিয়ভাবে পূরণ করা হয়েছে)`
+        : `Security Code: ${code} (Auto-filled)`,
       'info'
     );
   };
@@ -75,7 +75,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     showToast(lang === 'bn' ? 'যাচাই সফল! নতুন পাসওয়ার্ড দিন।' : 'Identity verified! Set your new password.', 'success');
   };
 
-  const handleReset = (e: React.FormEvent) => {
+  const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
       showToast(lang === 'bn' ? 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে' : 'Password must be at least 6 chars', 'error');
@@ -86,7 +86,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
       return;
     }
 
-    const res = resetPassword(phone, verifyValue, newPassword, verifyMethod);
+    const res = await resetPassword(phone, verifyValue, newPassword, verifyMethod);
     if (res.success) {
       onClose();
       setStep(1);
@@ -165,7 +165,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
                       : 'text-[#B0BBD4] hover:text-white'
                   }`}
                 >
-                  Email OTP
+                  {lang === 'bn' ? 'নিরাপত্তা কোড' : 'Security PIN'}
                 </button>
               </div>
 

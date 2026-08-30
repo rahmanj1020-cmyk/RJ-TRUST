@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, LogOut, Shield, Globe, Bell, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, LogOut, Shield, Globe, Bell, CheckCircle2, Sun, Moon } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface NavbarProps {
@@ -8,7 +8,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenChat, onOpenAdminLogin }) => {
-  const { currentUser, lang, setLang, logout, isAdminLoggedIn, setActiveTab, unreadChatCount, markNotificationRead } = useApp();
+  const { currentUser, lang, setLang, logout, isAdminLoggedIn, setActiveTab, unreadChatCount, markNotificationRead, theme, toggleTheme, t } = useApp();
   const [showNotifs, setShowNotifs] = useState(false);
 
   const notifications = currentUser?.notifications || [];
@@ -43,6 +43,24 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenChat, onOpenAdminLogin }) 
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {/* Theme Toggle (Dark / High-Contrast Light) */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-full border transition-all active:scale-95 cursor-pointer shadow-sm flex items-center justify-center ${
+              theme === 'light'
+                ? 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-800'
+                : 'bg-slate-800/60 hover:bg-slate-700/60 border-slate-700/60 text-amber-400 hover:text-amber-300'
+            }`}
+            title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to High-Contrast Light Mode'}
+            aria-label="Toggle Theme"
+          >
+            {theme === 'light' ? (
+              <Moon className="w-4 h-4" />
+            ) : (
+              <Sun className="w-4 h-4" />
+            )}
+          </button>
+
           {/* Language Switcher */}
           <button
             onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}

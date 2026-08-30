@@ -55,7 +55,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose })
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
             <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-200 text-xs flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              <p>2% Admin fee will be deducted from the transferred amount. Receiver gets the net amount.</p>
+              <p>1% Admin fee will be deducted from the transferred amount. Receiver gets the net amount.</p>
             </div>
 
             <div>

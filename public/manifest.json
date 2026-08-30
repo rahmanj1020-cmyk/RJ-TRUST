@@ -1,0 +1,12 @@
+{
+  "short_name": "RJ TRUST",
+  "name": "RJ TRUST — Financial Investment & Wealth Growth",
+  "description": "Secure wealth management platform offering VIP investment plans, prize bonds, and 3-generation referral bonuses.",
+  "start_url": "/",
+  "background_color": "#030712",
+  "theme_color": "#FCA311",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": ["finance", "business", "productivity"],
+  "lang": "bn"
+}

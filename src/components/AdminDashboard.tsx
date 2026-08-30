@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, ClipboardList, Users, ArrowDownLeft, ArrowUpRight, CheckCircle2, XCircle, Search, Gift, Trophy, RefreshCw, KeyRound, LogOut, DollarSign, AlertCircle, Sparkles, Trash2, LineChart, Activity, TrendingUp } from 'lucide-react';
+import { Shield, ClipboardList, Users, ArrowDownLeft, ArrowUpRight, CheckCircle2, XCircle, Search, Gift, Trophy, RefreshCw, KeyRound, LogOut, DollarSign, AlertCircle, Sparkles, Trash2, LineChart, Activity, TrendingUp, Download, Briefcase } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { RJ_BONDS, RJ_PLANS } from '../data/constants';
 import { User, RequestItem } from '../types';
@@ -21,6 +21,7 @@ export const AdminDashboard: React.FC = () => {
     adminDeleteRequest,
     adminDeleteUser,
     adminToggleUserStatus,
+    adminToggleUserMarketingStatus,
     awardBondPrize,
     refundBond,
     executeBondDraw,
@@ -34,6 +35,8 @@ export const AdminDashboard: React.FC = () => {
     marketingTeam,
     addMarketingMember,
     removeMarketingMember,
+    syncAllDataFromFirestore,
+    isSyncingData,
   } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'requests' | 'users' | 'bonds' | 'fees' | 'audit' | 'settings' | 'marketing'>('analytics');
@@ -44,6 +47,7 @@ export const AdminDashboard: React.FC = () => {
   // Marketing Team modal state
   const [marketingTeamName, setMarketingTeamName] = useState('');
   const [marketingTeamPhone, setMarketingTeamPhone] = useState('');
+  const [marketingTeamAccountId, setMarketingTeamAccountId] = useState('');
   const [marketingTeamRole, setMarketingTeamRole] = useState('');
   const [showAddMarketing, setShowAddMarketing] = useState(false);
 
@@ -97,6 +101,24 @@ export const AdminDashboard: React.FC = () => {
     adminAdjustBalance(adjustingUser.phone, num, adjustNote);
     setAdjustingUser(null);
     setAdjustAmount('');
+  };
+
+  
+  const handleBackupDatabase = () => {
+    const backupData = {
+      users,
+      transactions,
+      requests,
+      adminFeeWallet,
+      adminFeeTransactions
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `database_backup_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
   };
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
@@ -166,13 +188,24 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-xs text-[#B0BBD4]">Full Management, Approvals, Lottery & Ledgers</p>
           </div>
         </div>
-        <button
-          onClick={adminLogout}
-          className="p-2.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-          title="Exit Admin Panel"
-        >
-          <LogOut className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => syncAllDataFromFirestore()}
+            disabled={isSyncingData}
+            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 active:scale-95 transition-all text-xs font-black flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            title="Recover and sync all documents directly from Cloud Firestore"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingData ? 'animate-spin text-emerald-400' : ''}`} />
+            <span>{isSyncingData ? 'Recovering...' : 'Recover All Data'}</span>
+          </button>
+          <button
+            onClick={adminLogout}
+            className="p-2.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+            title="Exit Admin Panel"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-2">
@@ -284,6 +317,8 @@ export const AdminDashboard: React.FC = () => {
       {activeSubTab === 'requests' && (
         <AdminRequestsView
           requests={requests}
+          marketingTeam={marketingTeam}
+          users={users}
           approveRequest={approveRequest}
           rejectRequest={rejectRequest}
           adminDeleteRequest={adminDeleteRequest}
@@ -292,15 +327,34 @@ export const AdminDashboard: React.FC = () => {
 
       {activeSubTab === 'users' && (
         <div className="space-y-3">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={userSearchQuery}
-              onChange={(e) => setUserSearchQuery(e.target.value)}
-              placeholder="Search by name, phone, account ID, referral code..."
-              className="w-full bg-[#14213D] border border-[#2A3A5C] rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FCA311]"
-            />
+          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between bg-[#14213D] p-3 rounded-2xl border border-[#2A3A5C]">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                placeholder="Search by name, phone, account ID, referral code..."
+                className="w-full bg-[#0A1128] border border-[#2A3A5C] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FCA311]"
+              />
+            </div>
+            
+            <button
+              onClick={handleBackupDatabase}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Backup Database</span>
+            </button>
+            <button
+              onClick={() => syncAllDataFromFirestore()}
+
+              disabled={isSyncingData}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-black font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingData ? 'animate-spin' : ''}`} />
+              <span>{isSyncingData ? 'Recovering...' : 'Force Cloud Sync'}</span>
+            </button>
           </div>
 
           <div className="space-y-2.5">
@@ -311,7 +365,7 @@ export const AdminDashboard: React.FC = () => {
             ) : (
               filteredUsers.map((u, i) => (
                 <div
-                  key={u.phone}
+                  key={u.id}
                   className="rounded-2xl p-4 bg-[#14213D] border border-[#2A3A5C] shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-3"
                 >
                   <div>
@@ -360,6 +414,20 @@ export const AdminDashboard: React.FC = () => {
                       className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-extrabold text-xs active:scale-95 transition-all"
                     >
                       Adjust Balance
+                    </button>
+                    <button
+                      onClick={() => {
+                        const res = adminToggleUserMarketingStatus(u.phone);
+                        if (res.success) showToast(res.message, 'success');
+                      }}
+                      className={`px-3 py-1.5 rounded-xl font-extrabold text-xs active:scale-95 transition-all flex items-center gap-1 ${
+                        u.isMarketingTeam 
+                          ? 'bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300' 
+                          : 'bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400'
+                      }`}
+                    >
+                      <Briefcase className="w-3.5 h-3.5" />
+                      <span>{u.isMarketingTeam ? 'Remove Marketing' : 'Make Marketing'}</span>
                     </button>
                     <button
                       onClick={() => {
@@ -723,14 +791,27 @@ export const AdminDashboard: React.FC = () => {
                 marketingTeam.map((member) => (
                   <div key={member.id} className="bg-black/30 p-4 rounded-xl border border-white/5 flex items-center justify-between">
                     <div>
-                      <div className="text-white font-black">{member.name}</div>
-                      <div className="text-xs text-[#B0BBD4] mt-1">
-                        Phone: <span className="text-emerald-400 font-medium">{member.phone}</span> • Role: <span className="text-amber-400">{member.role}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-black">{member.name}</span>
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-[11px]">
+                          ID: #{member.accountId || member.id.slice(0, 8)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-[#B0BBD4] mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span>Phone: <strong className="text-emerald-400 font-mono">{member.phone}</strong></span>
+                        <span>•</span>
+                        <span>Role: <strong className="text-amber-400">{member.role}</strong></span>
+                        {member.joinDate && (
+                          <>
+                            <span>•</span>
+                            <span className="text-[11px] text-gray-400">Joined: {member.joinDate}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <button
                       onClick={() => {
-                        if (window.confirm('Are you sure you want to remove this team member?')) {
+                        if (window.confirm(`Are you sure you want to remove ${member.name} from marketing team?`)) {
                           removeMarketingMember(member.id);
                         }
                       }}
@@ -1012,9 +1093,35 @@ export const AdminDashboard: React.FC = () => {
                 <input
                   type="text"
                   value={marketingTeamPhone}
-                  onChange={(e) => setMarketingTeamPhone(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMarketingTeamPhone(val);
+                    const matched = users[val.trim()];
+                    if (matched) {
+                      if (!marketingTeamName) setMarketingTeamName(matched.fullName);
+                      if (!marketingTeamAccountId) setMarketingTeamAccountId(matched.id);
+                    }
+                  }}
                   className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#FCA311] transition-colors"
                   placeholder="e.g. 017..."
+                />
+                {users[marketingTeamPhone.trim()] && (
+                  <p className="text-[11px] text-emerald-400 mt-1 ml-1 flex items-center gap-1">
+                    ✓ Found registered user: {users[marketingTeamPhone.trim()].fullName} (Account #{users[marketingTeamPhone.trim()].id})
+                  </p>
+                )}
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1.5 ml-1">
+                  <label className="block text-xs font-bold text-[#B0BBD4]">Account ID</label>
+                  <span className="text-[10px] text-amber-400">Optional / Auto-linked</span>
+                </div>
+                <input
+                  type="text"
+                  value={marketingTeamAccountId}
+                  onChange={(e) => setMarketingTeamAccountId(e.target.value)}
+                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-mono focus:outline-none focus:border-[#FCA311] transition-colors"
+                  placeholder={users[marketingTeamPhone.trim()] ? users[marketingTeamPhone.trim()].id : "e.g. RJ-100234 or leave blank"}
                 />
               </div>
               <div>
@@ -1024,23 +1131,24 @@ export const AdminDashboard: React.FC = () => {
                   value={marketingTeamRole}
                   onChange={(e) => setMarketingTeamRole(e.target.value)}
                   className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#FCA311] transition-colors"
-                  placeholder="e.g. Lead Marketer"
+                  placeholder="e.g. Senior Marketing Officer / Team Lead"
                 />
               </div>
               
               <button
                 onClick={() => {
                   if (!marketingTeamName || !marketingTeamPhone || !marketingTeamRole) {
-                    alert('Please fill all fields');
+                    alert('Please fill name, phone, and role fields');
                     return;
                   }
-                  addMarketingMember(marketingTeamName, marketingTeamPhone, marketingTeamRole);
+                  addMarketingMember(marketingTeamName, marketingTeamPhone, marketingTeamRole, marketingTeamAccountId);
                   setMarketingTeamName('');
                   setMarketingTeamPhone('');
+                  setMarketingTeamAccountId('');
                   setMarketingTeamRole('');
                   setShowAddMarketing(false);
                 }}
-                className="w-full py-3.5 bg-gradient-to-r from-[#FCA311] to-[#E59400] text-black rounded-xl font-black text-sm shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all"
+                className="w-full py-3.5 bg-gradient-to-r from-[#FCA311] to-[#E59400] text-black rounded-xl font-black text-sm shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all cursor-pointer"
               >
                 Add Team Member
               </button>

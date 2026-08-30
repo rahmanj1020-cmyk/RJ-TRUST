@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ArrowUpRight, AlertCircle, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { Briefcase } from 'lucide-react';
 import { PAYMENT_METHODS } from '../data/constants';
 
 interface WithdrawModalProps {
@@ -10,11 +11,13 @@ interface WithdrawModalProps {
 }
 
 export const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
-  const { currentUser, submitWithdrawal, t, lang, showToast } = useApp();
+  const { currentUser, submitWithdrawal, t, lang, showToast, marketingTeam } = useApp();
+  const isMarketingMember = currentUser?.isMarketingTeam || marketingTeam.some(m => m.phone === currentUser?.phone);
 
   const [selectedMethod, setSelectedMethod] = useState<'bKash' | 'Nagad' | 'Rocket'>('bKash');
   const [amount, setAmount] = useState<string>('500');
   const [accountNumber, setAccountNumber] = useState<string>('');
+  const [pinInput, setPinInput] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   if (!isOpen || !currentUser) return null;
@@ -40,6 +43,14 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose })
     if (!accountNumber || accountNumber.trim().length < 11) {
       showToast(lang === 'bn' ? 'সঠিক ১১ ডিজিটের অ্যাকাউন্ট নম্বর দিন' : 'Enter valid 11-digit wallet number', 'error');
       return;
+    }
+
+    // Security PIN Check if configured
+    if (currentUser.securityPin && currentUser.isPinEnabled) {
+      if (!pinInput || pinInput.trim() !== currentUser.securityPin) {
+        showToast(lang === 'bn' ? 'ভুল ৪-ডিজিট সিকিউরিটি পিন' : 'Invalid 4-digit Security PIN', 'error');
+        return;
+      }
     }
 
     setLoading(true);
@@ -145,6 +156,26 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose })
               />
             </div>
 
+            {currentUser.securityPin && currentUser.isPinEnabled && (
+              <div>
+                <label className="block text-xs font-bold text-[#FCA311] mb-1 flex items-center justify-between">
+                  <span>{lang === 'bn' ? '৪ ডিজিট সিকিউরিটি পিন' : '4-Digit Security PIN'}</span>
+                  <span className="text-[10px] text-emerald-400 font-mono">PIN Protected</span>
+                </label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                  placeholder="••••"
+                  className="w-full bg-[#0A1128] border border-amber-500/50 rounded-xl px-4 py-2.5 text-center text-lg font-mono tracking-widest text-[#FCA311] focus:outline-none focus:border-[#FCA311]"
+                  required
+                />
+              </div>
+            )}
+
             {/* Fee & Net Calculation Breakdown */}
             <div className="p-3 rounded-xl bg-black/60 border border-white/10 space-y-1.5 text-xs">
               <div className="flex justify-between text-[#B0BBD4]">
@@ -161,14 +192,26 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose })
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading || currentUser.balance < numAmount || numAmount < 500}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#FCA311] via-amber-400 to-[#e0900a] text-black font-extrabold text-sm shadow-xl shadow-amber-500/20 active:scale-[0.98] transition-all hover:brightness-105 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Submitting...' : 'Submit Withdrawal Request'}
-            </button>
-          </form>
+            {isMarketingMember ? (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading || currentUser.balance < numAmount || numAmount < 500}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-500 to-indigo-600 text-white font-extrabold text-sm shadow-xl shadow-indigo-500/20 active:scale-[0.98] transition-all hover:brightness-105 mt-2 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Briefcase className="w-4 h-4" />
+                {loading ? 'Submitting...' : 'Marketing Team Withdraw'}
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading || currentUser.balance < numAmount || numAmount < 500}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#FCA311] via-amber-400 to-[#e0900a] text-black font-extrabold text-sm shadow-xl shadow-amber-500/20 active:scale-[0.98] transition-all hover:brightness-105 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Submitting...' : 'Submit Withdrawal Request'}
+              </button>
+            )}
+            </form>
         </motion.div>
       </div>
     </AnimatePresence>

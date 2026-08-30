@@ -14,6 +14,7 @@ import { HomeTab } from './components/HomeTab';
 import { VipTab } from './components/VipTab';
 import { InvestTab } from './components/InvestTab';
 import { BondTab } from './components/BondTab';
+import { FDTab } from './components/FDTab';
 import { AccountTab } from './components/AccountTab';
 import { TransactionsTab } from './components/TransactionsTab';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -26,10 +27,20 @@ import { SupportChatModal } from './components/SupportChatModal';
 import { ForgotPasswordModal } from './components/ForgotPasswordModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
+import { SecurityCenterModal } from './components/SecurityCenterModal';
 import { InvestmentPlan } from './types';
+import { useSEO } from './utils/useSEO';
 
 const MainLayout: React.FC = () => {
-  const { currentUser, activeTab, isAdminLoggedIn } = useApp();
+  const { currentUser, activeTab, isAdminLoggedIn, theme, lang, isSecurityModalOpen, setIsSecurityModalOpen } = useApp();
+
+  // Dynamic SEO handler
+  useSEO({
+    activeTab,
+    lang,
+    isLoggedIn: !!currentUser,
+    isAdmin: isAdminLoggedIn,
+  });
 
   // Modal controls
   const [depositOpen, setDepositOpen] = useState(false);
@@ -57,7 +68,7 @@ const MainLayout: React.FC = () => {
   // If user is not logged in and not in admin mode, show Auth Screen
   if (!currentUser && !isAdminLoggedIn) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className={`min-h-screen ${theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-black text-white'}`}>
         <Toast />
         <AuthScreen
           onOpenForgotPassword={() => setForgotPasswordOpen(true)}
@@ -76,7 +87,7 @@ const MainLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#05070a] text-slate-100 flex flex-col selection:bg-[#FCA311] selection:text-black">
+    <div className={`min-h-screen ${theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-[#05070a] text-slate-100'} flex flex-col selection:bg-[#FCA311] selection:text-black`}>
       <Toast />
 
       {/* Top Header */}
@@ -102,6 +113,7 @@ const MainLayout: React.FC = () => {
           <InvestTab onSelectPlan={(plan) => setSelectedPlanForModal(plan)} />
         )}
 
+        {activeTab === 'fd' && <FDTab />}
         {activeTab === 'bond' && <BondTab />}
 
         {activeTab === 'tx' && <TransactionsTab />}
@@ -188,6 +200,11 @@ const MainLayout: React.FC = () => {
       <AdminLoginModal
         isOpen={adminLoginOpen}
         onClose={() => setAdminLoginOpen(false)}
+      />
+
+      <SecurityCenterModal
+        isOpen={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
       />
     </div>
   );

@@ -30,7 +30,9 @@ import {
   Sparkles,
   CreditCard,
   Percent,
-  CheckCircle2
+  CheckCircle2,
+  Download,
+  FileText
 } from 'lucide-react';
 import { User, RequestItem, Transaction } from '../types';
 import { RJ_PLANS, RJ_BONDS } from '../data/constants';
@@ -203,6 +205,58 @@ export const AdminCharts: React.FC<AdminChartsProps> = ({ users, requests, trans
     });
   }, [allUsersList, timeRange]);
 
+  // Aggregate 3-Generation Referral Earnings over time
+  const referralGrowthData = useMemo(() => {
+    const now = new Date();
+    // Default to 30 days if timeRange is 'all', otherwise use the selected limit
+    const daysLimit = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 30;
+    const dateMap: Record<string, { date: string; gen1: number; gen2: number; gen3: number; total: number }> = {};
+
+    for (let i = daysLimit - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const displayDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateMap[dateStr] = {
+        date: displayDate,
+        gen1: 0,
+        gen2: 0,
+        gen3: 0,
+        total: 0,
+      };
+    }
+
+    // Helper to parse generation
+    const parseTxGen = (tx: Transaction) => {
+      const text = `${tx.title || ''} ${tx.titleBn || ''} ${tx.details || ''}`.toLowerCase();
+      if (text.includes('2nd') || text.includes('২য়') || text.includes('gen 2') || text.includes('generation 2') || text.includes('3%')) return 2;
+      if (text.includes('3rd') || text.includes('৩য়') || text.includes('gen 3') || text.includes('generation 3') || text.includes('2%')) return 3;
+      return 1;
+    };
+
+    transactions.forEach((tx) => {
+      if (tx.type === 'referral_commission' || (tx.type === 'bonus' && (tx.title?.includes('Referral') || tx.titleBn?.includes('রেফার')))) {
+        let reqDateStr = '';
+        if (tx.timestamp && typeof tx.timestamp === 'number') {
+          reqDateStr = new Date(tx.timestamp).toISOString().split('T')[0];
+        } else if (tx.date) {
+          reqDateStr = new Date(tx.date).toISOString().split('T')[0];
+        }
+        
+        if (dateMap[reqDateStr]) {
+          const gen = parseTxGen(tx);
+          const amt = Number(tx.amount) || 0;
+          dateMap[reqDateStr].total += amt;
+          if (gen === 1) dateMap[reqDateStr].gen1 += amt;
+          else if (gen === 2) dateMap[reqDateStr].gen2 += amt;
+          else if (gen === 3) dateMap[reqDateStr].gen3 += amt;
+        }
+      }
+    });
+
+    return Object.values(dateMap);
+  }, [transactions, timeRange]);
+
   // Deposit methods distribution
   const paymentMethodDistribution = useMemo(() => {
     const counts: Record<string, number> = { bKash: 0, Nagad: 0, Rocket: 0 };
@@ -282,6 +336,66 @@ export const AdminCharts: React.FC<AdminChartsProps> = ({ users, requests, trans
     return sum + (planVol || u.totalInvested || 0) + bondVol;
   }, 0);
 
+  const handleDownloadEarningsCSV = () => {
+    const headers = ['Date', 'Gen 1 Earnings (BDT)', 'Gen 2 Earnings (BDT)', 'Gen 3 Earnings (BDT)', 'Total Earnings (BDT)'];
+    const rows = referralGrowthData.map(d => [
+      d.date,
+      d.gen1,
+      d.gen2,
+      d.gen3,
+      d.total
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `referral_earnings_trend_${timeRange}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadInvestmentsCSV = () => {
+    const headers = ['User Phone', 'Full Name', 'Plan Name', 'Invested Amount (BDT)', 'Daily Income (BDT)', 'Status', 'Activation Date'];
+    
+    const rows: (string | number)[][] = [];
+    allUsersList.forEach(user => {
+      if (user.investments && user.investments.length > 0) {
+        user.investments.forEach(inv => {
+          rows.push([
+            user.phone,
+            `"${user.fullName || 'Unknown'}"`,
+            `"${inv.planName || 'Unknown Plan'}"`,
+            inv.investAmount || 0,
+            inv.dailyIncome || 0,
+            inv.status || 'unknown',
+            inv.activationDate || ''
+          ]);
+        });
+      }
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `user_investment_reports.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Custom Chart Tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -330,6 +444,27 @@ export const AdminCharts: React.FC<AdminChartsProps> = ({ users, requests, trans
 
         {/* Timeframe & View Toggles */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <div className="flex bg-[#14213D] border border-[#2A3A5C] rounded-xl p-1 gap-1">
+            <button
+              onClick={handleDownloadEarningsCSV}
+              className="px-3 py-1 flex items-center gap-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer bg-slate-800 text-[#B0BBD4] hover:bg-slate-700 hover:text-white border border-[#2A3A5C]/50"
+              title="Download 30-Day Earnings Trend CSV"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Earnings CSV</span>
+              <Download className="w-3 h-3" />
+            </button>
+            <button
+              onClick={handleDownloadInvestmentsCSV}
+              className="px-3 py-1 flex items-center gap-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer bg-slate-800 text-[#B0BBD4] hover:bg-slate-700 hover:text-white border border-[#2A3A5C]/50"
+              title="Download User Investment Reports CSV"
+            >
+              <FileText className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Investments CSV</span>
+              <Download className="w-3 h-3" />
+            </button>
+          </div>
+
           <div className="flex bg-[#14213D] border border-[#2A3A5C] rounded-xl p-1">
             {(['7d', '30d', '90d', 'all'] as const).map((range) => (
               <button
@@ -526,6 +661,68 @@ export const AdminCharts: React.FC<AdminChartsProps> = ({ users, requests, trans
                   dot={{ r: 3, fill: '#FCA311' }}
                 />
               </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* CHART 2B: 3-Generation Referral Growth */}
+      {(chartView === 'all' || chartView === 'finance') && (
+        <div className="bg-[#14213D] border border-[#2A3A5C] rounded-3xl p-5 shadow-2xl mt-5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-white/5">
+            <div>
+              <h4 className="text-sm font-black text-white flex items-center gap-2">
+                <Users className="w-4 h-4 text-[#FCA311]" />
+                <span>3-Generation Referral Earnings Trend (Platform Wide)</span>
+              </h4>
+              <p className="text-xs text-[#B0BBD4]">Total commissions distributed for Gen 1, Gen 2, and Gen 3</p>
+            </div>
+            <div className="flex items-center gap-3 text-xs font-semibold">
+              <span className="flex items-center gap-1 text-[#FCA311]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FCA311]" />
+                <span>Gen 1 (5%)</span>
+              </span>
+              <span className="flex items-center gap-1 text-emerald-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <span>Gen 2 (3%)</span>
+              </span>
+              <span className="flex items-center gap-1 text-cyan-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
+                <span>Gen 3 (2%)</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={referralGrowthData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorGen1Admin" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#FCA311" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#FCA311" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorGen2Admin" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorGen3Admin" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2A3A5C" opacity={0.5} />
+                <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                <YAxis
+                  stroke="#94a3b8"
+                  fontSize={11}
+                  tickLine={false}
+                  tickFormatter={(val) => (val >= 1000 ? `৳${(val / 1000).toFixed(0)}k` : `৳${val}`)}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="gen1" name="Gen 1 Earnings" stroke="#FCA311" strokeWidth={2} fillOpacity={1} fill="url(#colorGen1Admin)" stackId="1" />
+                <Area type="monotone" dataKey="gen2" name="Gen 2 Earnings" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorGen2Admin)" stackId="1" />
+                <Area type="monotone" dataKey="gen3" name="Gen 3 Earnings" stroke="#06b6d4" strokeWidth={2} fillOpacity={1} fill="url(#colorGen3Admin)" stackId="1" />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>

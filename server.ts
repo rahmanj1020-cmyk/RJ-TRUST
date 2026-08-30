@@ -10,7 +10,7 @@ import crypto from 'crypto';
 dotenv.config();
 
 // In-memory store for OTPs (In production, use Redis or a DB)
-const otpStore: Record<string, { hashedOtp: string; expires: number }> = {};
+const otpStore: Record<string, { hashedOtp: string; expires: number; attempts: number }> = {};
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -25,6 +25,7 @@ function generateAndHashOTP(email: string): string {
   otpStore[email] = {
     hashedOtp,
     expires: Date.now() + OTP_EXPIRY_MS,
+    attempts: 0,
   };
   
   return plainOtp;
@@ -32,6 +33,10 @@ function generateAndHashOTP(email: string): string {
 
 // Helper function to validate the hashed OTP securely
 function validateOTP(email: string, plainOtp: string): { valid: boolean; message: string } {
+  if (typeof email !== 'string' || typeof plainOtp !== 'string' || !email || !plainOtp) {
+    return { valid: false, message: 'Invalid input' };
+  }
+
   const storedData = otpStore[email];
   
   if (!storedData) {
@@ -43,10 +48,22 @@ function validateOTP(email: string, plainOtp: string): { valid: boolean; message
     return { valid: false, message: 'OTP has expired' };
   }
 
+  if (storedData.attempts >= 5) {
+    delete otpStore[email];
+    return { valid: false, message: 'Too many failed attempts. OTP invalidated.' };
+  }
+
   // Hash the incoming plain OTP to compare with the stored hash
   const hashedInput = crypto.createHash('sha256').update(plainOtp).digest('hex');
-  
-  if (hashedInput !== storedData.hashedOtp) {
+  const bufInput = Buffer.from(hashedInput, 'hex');
+  const bufStored = Buffer.from(storedData.hashedOtp, 'hex');
+
+  if (bufInput.length !== bufStored.length || !crypto.timingSafeEqual(bufInput, bufStored)) {
+    storedData.attempts += 1;
+    if (storedData.attempts >= 5) {
+      delete otpStore[email];
+      return { valid: false, message: 'Too many failed attempts. OTP invalidated.' };
+    }
     return { valid: false, message: 'Invalid OTP' };
   }
 

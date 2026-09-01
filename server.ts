@@ -43,10 +43,11 @@ function validateOTP(email: string, plainOtp: string): { valid: boolean; message
     return { valid: false, message: 'OTP has expired' };
   }
 
-  // Hash the incoming plain OTP to compare with the stored hash
-  const hashedInput = crypto.createHash('sha256').update(plainOtp).digest('hex');
+  // Hash incoming plain OTP and compare buffers with timingSafeEqual to prevent timing side-channel attacks
+  const hashedInputBuf = crypto.createHash('sha256').update(plainOtp).digest();
+  const storedHashBuf = Buffer.from(storedData.hashedOtp, 'hex');
   
-  if (hashedInput !== storedData.hashedOtp) {
+  if (hashedInputBuf.length !== storedHashBuf.length || !crypto.timingSafeEqual(hashedInputBuf, storedHashBuf)) {
     return { valid: false, message: 'Invalid OTP' };
   }
 

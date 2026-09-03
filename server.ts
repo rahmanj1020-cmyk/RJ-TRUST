@@ -32,6 +32,10 @@ function generateAndHashOTP(email: string): string {
 
 // Helper function to validate the hashed OTP securely
 function validateOTP(email: string, plainOtp: string): { valid: boolean; message: string } {
+  if (typeof email !== 'string' || typeof plainOtp !== 'string') {
+    return { valid: false, message: 'Invalid input format' };
+  }
+
   const storedData = otpStore[email];
   
   if (!storedData) {
@@ -46,7 +50,10 @@ function validateOTP(email: string, plainOtp: string): { valid: boolean; message
   // Hash the incoming plain OTP to compare with the stored hash
   const hashedInput = crypto.createHash('sha256').update(plainOtp).digest('hex');
   
-  if (hashedInput !== storedData.hashedOtp) {
+  // Timing-safe comparison to prevent side-channel timing attacks
+  const bufInput = Buffer.from(hashedInput, 'hex');
+  const bufStored = Buffer.from(storedData.hashedOtp, 'hex');
+  if (bufInput.length !== bufStored.length || !crypto.timingSafeEqual(bufInput, bufStored)) {
     return { valid: false, message: 'Invalid OTP' };
   }
 
@@ -274,14 +281,18 @@ Keep responses concise, friendly, helpful, and courteous in ${language === 'bn' 
   app.post('/api/auth/send-otp', async (req: Request, res: Response): Promise<void> => {
     try {
       const { email } = req.body;
-      if (!email || !email.includes('@')) {
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
         res.status(400).json({ success: false, message: 'Invalid email address' });
         return;
       }
 
       if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.warn('SMTP credentials not configured. OTP bypassing email.');
-        // If no credentials, just generate it and log it (for testing in preview without config)
+        if (process.env.NODE_ENV === 'production') {
+          res.status(500).json({ success: false, message: 'Email service is not configured' });
+          return;
+        }
+        console.warn('SMTP credentials not configured. OTP bypassing email in dev.');
+        // If no credentials in dev/test mode, generate it and log it
         const otp = generateAndHashOTP(email);
         res.json({ success: true, message: `TEST MODE: Your OTP is ${otp}`, testOtp: otp });
         console.log(`[DEVELOPMENT ONLY] OTP for ${email} is: ${otp}`);
@@ -322,7 +333,7 @@ Keep responses concise, friendly, helpful, and courteous in ${language === 'bn' 
   // OTP Verification Endpoint
   app.post('/api/auth/verify-otp', (req: Request, res: Response): void => {
     const { email, otp } = req.body;
-    if (!email || !otp) {
+    if (!email || !otp || typeof email !== 'string' || typeof otp !== 'string') {
       res.status(400).json({ success: false, message: 'Email and OTP required' });
       return;
     }

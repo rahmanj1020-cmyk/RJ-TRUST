@@ -322,8 +322,8 @@ Keep responses concise, friendly, helpful, and courteous in ${language === 'bn' 
   // OTP Verification Endpoint
   app.post('/api/auth/verify-otp', (req: Request, res: Response): void => {
     const { email, otp } = req.body;
-    if (!email || !otp) {
-      res.status(400).json({ success: false, message: 'Email and OTP required' });
+    if (!email || typeof email !== 'string' || !otp || typeof otp !== 'string') {
+      res.status(400).json({ success: false, message: 'Valid email and OTP required' });
       return;
     }
 

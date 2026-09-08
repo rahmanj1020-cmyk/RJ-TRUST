@@ -32,6 +32,10 @@ function generateAndHashOTP(email: string): string {
 
 // Helper function to validate the hashed OTP securely
 function validateOTP(email: string, plainOtp: string): { valid: boolean; message: string } {
+  if (typeof email !== 'string' || typeof plainOtp !== 'string') {
+    return { valid: false, message: 'Invalid input format' };
+  }
+
   const storedData = otpStore[email];
   
   if (!storedData) {
@@ -43,10 +47,14 @@ function validateOTP(email: string, plainOtp: string): { valid: boolean; message
     return { valid: false, message: 'OTP has expired' };
   }
 
-  // Hash the incoming plain OTP to compare with the stored hash
+  // Hash the incoming plain OTP
   const hashedInput = crypto.createHash('sha256').update(plainOtp).digest('hex');
   
-  if (hashedInput !== storedData.hashedOtp) {
+  // Use timingSafeEqual to prevent timing attacks on hash comparison
+  const bufInput = Buffer.from(hashedInput, 'hex');
+  const bufStored = Buffer.from(storedData.hashedOtp, 'hex');
+
+  if (bufInput.length !== bufStored.length || !crypto.timingSafeEqual(bufInput, bufStored)) {
     return { valid: false, message: 'Invalid OTP' };
   }
 
@@ -322,13 +330,13 @@ Keep responses concise, friendly, helpful, and courteous in ${language === 'bn' 
   // OTP Verification Endpoint
   app.post('/api/auth/verify-otp', (req: Request, res: Response): void => {
     const { email, otp } = req.body;
-    if (!email || !otp) {
-      res.status(400).json({ success: false, message: 'Email and OTP required' });
+    if (!email || typeof email !== 'string' || !otp || (typeof otp !== 'string' && typeof otp !== 'number')) {
+      res.status(400).json({ success: false, message: 'Email and valid OTP required' });
       return;
     }
 
-    // Use the secure validation helper which compares SHA-256 hashes
-    const validationResult = validateOTP(email, otp);
+    // Use the secure validation helper which compares SHA-256 hashes in constant time
+    const validationResult = validateOTP(email, String(otp));
     
     if (!validationResult.valid) {
       res.status(400).json({ success: false, message: validationResult.message });

@@ -1,0 +1,4 @@
+## 2025-05-18 - OTP Verification Brute Force and Timing Side-Channel Protection
+**Vulnerability:** OTP verification stored SHA-256 OTP hashes in memory without capping failed verification attempts, leaving 6-digit OTPs vulnerable to brute-force guessing during their 5-minute validity window. In addition, hash comparison used non-constant-time string comparison (`!==`).
+**Learning:** Even when storing hashed OTPs rather than plaintext OTPs, failing to track verification attempt counts allows attacker brute-force attempts.
+**Prevention:** Track failed attempts (`attempts`) for each stored OTP with a maximum threshold (`MAX_OTP_ATTEMPTS = 5`) and immediately invalidate the OTP when exceeded. Use `crypto.timingSafeEqual` on constant-length buffers for string/hash comparisons to prevent timing side-channel attacks.

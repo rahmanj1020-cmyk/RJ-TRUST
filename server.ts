@@ -10,9 +10,10 @@ import crypto from 'crypto';
 dotenv.config();
 
 // In-memory store for OTPs (In production, use Redis or a DB)
-const otpStore: Record<string, { hashedOtp: string; expires: number }> = {};
+const otpStore: Record<string, { hashedOtp: string; expires: number; attempts: number }> = {};
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_OTP_ATTEMPTS = 5; // Max allowed attempts to prevent brute-force attacks
 
 // Helper function to generate, hash, and store the OTP securely
 function generateAndHashOTP(email: string): string {
@@ -25,12 +26,13 @@ function generateAndHashOTP(email: string): string {
   otpStore[email] = {
     hashedOtp,
     expires: Date.now() + OTP_EXPIRY_MS,
+    attempts: 0,
   };
   
   return plainOtp;
 }
 
-// Helper function to validate the hashed OTP securely
+// Helper function to validate the hashed OTP securely with brute-force protection and constant-time comparison
 function validateOTP(email: string, plainOtp: string): { valid: boolean; message: string } {
   const storedData = otpStore[email];
   
@@ -43,10 +45,28 @@ function validateOTP(email: string, plainOtp: string): { valid: boolean; message
     return { valid: false, message: 'OTP has expired' };
   }
 
+  if (storedData.attempts >= MAX_OTP_ATTEMPTS) {
+    delete otpStore[email];
+    return { valid: false, message: 'Too many failed attempts. OTP invalidated.' };
+  }
+
+  storedData.attempts += 1;
+
   // Hash the incoming plain OTP to compare with the stored hash
   const hashedInput = crypto.createHash('sha256').update(plainOtp).digest('hex');
+  const inputBuffer = Buffer.from(hashedInput, 'hex');
+  const storedBuffer = Buffer.from(storedData.hashedOtp, 'hex');
   
-  if (hashedInput !== storedData.hashedOtp) {
+  // Constant-time comparison to protect against timing side-channel attacks
+  const isMatch =
+    inputBuffer.length === storedBuffer.length &&
+    crypto.timingSafeEqual(inputBuffer, storedBuffer);
+
+  if (!isMatch) {
+    if (storedData.attempts >= MAX_OTP_ATTEMPTS) {
+      delete otpStore[email];
+      return { valid: false, message: 'Too many failed attempts. OTP invalidated.' };
+    }
     return { valid: false, message: 'Invalid OTP' };
   }
 

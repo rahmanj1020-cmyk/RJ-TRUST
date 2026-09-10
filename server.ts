@@ -10,7 +10,7 @@ import crypto from 'crypto';
 dotenv.config();
 
 // In-memory store for OTPs (In production, use Redis or a DB)
-const otpStore: Record<string, { hashedOtp: string; expires: number }> = {};
+const otpStore: Record<string, { hashedOtp: string; expires: number; attempts: number }> = {};
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -25,6 +25,7 @@ function generateAndHashOTP(email: string): string {
   otpStore[email] = {
     hashedOtp,
     expires: Date.now() + OTP_EXPIRY_MS,
+    attempts: 0,
   };
   
   return plainOtp;
@@ -43,10 +44,26 @@ function validateOTP(email: string, plainOtp: string): { valid: boolean; message
     return { valid: false, message: 'OTP has expired' };
   }
 
+  if (storedData.attempts >= 5) {
+    delete otpStore[email];
+    return { valid: false, message: 'Too many failed attempts. OTP invalidated.' };
+  }
+
   // Hash the incoming plain OTP to compare with the stored hash
   const hashedInput = crypto.createHash('sha256').update(plainOtp).digest('hex');
   
-  if (hashedInput !== storedData.hashedOtp) {
+  const bufInput = Buffer.from(hashedInput, 'hex');
+  const bufStored = Buffer.from(storedData.hashedOtp, 'hex');
+
+  // Constant-time hash comparison to prevent timing attacks
+  const matches = bufInput.length === bufStored.length && crypto.timingSafeEqual(bufInput, bufStored);
+
+  if (!matches) {
+    storedData.attempts += 1;
+    if (storedData.attempts >= 5) {
+      delete otpStore[email];
+      return { valid: false, message: 'Too many failed attempts. OTP invalidated.' };
+    }
     return { valid: false, message: 'Invalid OTP' };
   }
 
@@ -280,11 +297,16 @@ Keep responses concise, friendly, helpful, and courteous in ${language === 'bn' 
       }
 
       if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.warn('SMTP credentials not configured. OTP bypassing email.');
-        // If no credentials, just generate it and log it (for testing in preview without config)
+        if (process.env.NODE_ENV === 'production') {
+          console.error('SMTP credentials not configured in production.');
+          res.status(500).json({ success: false, message: 'Email service is not configured' });
+          return;
+        }
+        console.warn('SMTP credentials not configured. OTP bypassing email in development.');
+        // If no credentials in dev mode, generate it and log to console without exposing testOtp in response
         const otp = generateAndHashOTP(email);
-        res.json({ success: true, message: `TEST MODE: Your OTP is ${otp}`, testOtp: otp });
         console.log(`[DEVELOPMENT ONLY] OTP for ${email} is: ${otp}`);
+        res.json({ success: true, message: 'OTP generated (Development mode: check server logs)' });
         return;
       }
 

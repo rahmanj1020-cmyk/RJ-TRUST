@@ -10,9 +10,10 @@ import crypto from 'crypto';
 dotenv.config();
 
 // In-memory store for OTPs (In production, use Redis or a DB)
-const otpStore: Record<string, { hashedOtp: string; expires: number }> = {};
+const otpStore: Record<string, { hashedOtp: string; expires: number; attempts: number }> = {};
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_OTP_ATTEMPTS = 5; // Maximum failed attempts per OTP to prevent brute force
 
 // Helper function to generate, hash, and store the OTP securely
 function generateAndHashOTP(email: string): string {
@@ -25,6 +26,7 @@ function generateAndHashOTP(email: string): string {
   otpStore[email] = {
     hashedOtp,
     expires: Date.now() + OTP_EXPIRY_MS,
+    attempts: 0,
   };
   
   return plainOtp;
@@ -43,10 +45,25 @@ function validateOTP(email: string, plainOtp: string): { valid: boolean; message
     return { valid: false, message: 'OTP has expired' };
   }
 
+  if (storedData.attempts >= MAX_OTP_ATTEMPTS) {
+    delete otpStore[email];
+    return { valid: false, message: 'Too many failed attempts. OTP has been invalidated.' };
+  }
+
   // Hash the incoming plain OTP to compare with the stored hash
   const hashedInput = crypto.createHash('sha256').update(plainOtp).digest('hex');
-  
-  if (hashedInput !== storedData.hashedOtp) {
+  const bufInput = Buffer.from(hashedInput, 'hex');
+  const bufStored = Buffer.from(storedData.hashedOtp, 'hex');
+
+  // Timing-safe comparison to prevent side-channel timing attacks
+  const isMatch = bufInput.length === bufStored.length && crypto.timingSafeEqual(bufInput, bufStored);
+
+  if (!isMatch) {
+    storedData.attempts += 1;
+    if (storedData.attempts >= MAX_OTP_ATTEMPTS) {
+      delete otpStore[email];
+      return { valid: false, message: 'Too many failed attempts. OTP has been invalidated.' };
+    }
     return { valid: false, message: 'Invalid OTP' };
   }
 

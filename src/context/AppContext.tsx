@@ -1184,14 +1184,8 @@ const deleteUserFromFirestore = async (phone: string) => {
       console.warn("Could not fetch admin credentials on login", e);
     }
     
-    // Emergency fallback master credentials
-    if (cleanId === '1020304' && cleanPass === 'admin1234') {
-      setIsAdminLoggedIn(true);
-      setActiveTab('admin');
-      showToast('Master Admin Authenticated (Fallback)', 'success');
-      return { success: true, message: 'Admin login successful' };
-    }
-    
+    // Security: Validate against stored/configured admin credentials.
+    // Hardcoded emergency fallback credentials ('1020304' / 'admin1234') were removed to prevent unauthorized administrative access.
     if (cleanId.toLowerCase() === currentAdminId.toLowerCase() && cleanPass === currentAdminPw) {
       setIsAdminLoggedIn(true);
       setActiveTab('admin');

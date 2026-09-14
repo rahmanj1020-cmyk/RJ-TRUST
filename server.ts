@@ -43,10 +43,12 @@ function validateOTP(email: string, plainOtp: string): { valid: boolean; message
     return { valid: false, message: 'OTP has expired' };
   }
 
-  // Hash the incoming plain OTP to compare with the stored hash
+  // Hash the incoming plain OTP and compare using timingSafeEqual to prevent timing attacks
   const hashedInput = crypto.createHash('sha256').update(plainOtp).digest('hex');
+  const bufferInput = Buffer.from(hashedInput, 'hex');
+  const bufferStored = Buffer.from(storedData.hashedOtp, 'hex');
   
-  if (hashedInput !== storedData.hashedOtp) {
+  if (bufferInput.length !== bufferStored.length || !crypto.timingSafeEqual(bufferInput, bufferStored)) {
     return { valid: false, message: 'Invalid OTP' };
   }
 
@@ -322,8 +324,8 @@ Keep responses concise, friendly, helpful, and courteous in ${language === 'bn' 
   // OTP Verification Endpoint
   app.post('/api/auth/verify-otp', (req: Request, res: Response): void => {
     const { email, otp } = req.body;
-    if (!email || !otp) {
-      res.status(400).json({ success: false, message: 'Email and OTP required' });
+    if (!email || typeof email !== 'string' || !otp || typeof otp !== 'string') {
+      res.status(400).json({ success: false, message: 'Valid email and OTP string required' });
       return;
     }
 

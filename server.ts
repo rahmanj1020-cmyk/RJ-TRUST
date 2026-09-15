@@ -280,11 +280,14 @@ Keep responses concise, friendly, helpful, and courteous in ${language === 'bn' 
       }
 
       if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.warn('SMTP credentials not configured. OTP bypassing email.');
-        // If no credentials, just generate it and log it (for testing in preview without config)
+        console.warn('SMTP credentials not configured.');
+        // SECURITY: Never return OTP in response payload to avoid sensitive data exposure.
+        // Log to server console only for local development/testing.
         const otp = generateAndHashOTP(email);
-        res.json({ success: true, message: `TEST MODE: Your OTP is ${otp}`, testOtp: otp });
-        console.log(`[DEVELOPMENT ONLY] OTP for ${email} is: ${otp}`);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[DEVELOPMENT ONLY] OTP generated for ${email}: ${otp}`);
+        }
+        res.json({ success: true, message: 'OTP sent successfully' });
         return;
       }
 

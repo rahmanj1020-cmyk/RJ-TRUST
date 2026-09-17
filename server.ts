@@ -46,7 +46,11 @@ function validateOTP(email: string, plainOtp: string): { valid: boolean; message
   // Hash the incoming plain OTP to compare with the stored hash
   const hashedInput = crypto.createHash('sha256').update(plainOtp).digest('hex');
   
-  if (hashedInput !== storedData.hashedOtp) {
+  const inputBuffer = Buffer.from(hashedInput, 'hex');
+  const storedBuffer = Buffer.from(storedData.hashedOtp, 'hex');
+
+  // Security: Use constant-time comparison to prevent timing side-channel attacks
+  if (inputBuffer.length !== storedBuffer.length || !crypto.timingSafeEqual(inputBuffer, storedBuffer)) {
     return { valid: false, message: 'Invalid OTP' };
   }
 

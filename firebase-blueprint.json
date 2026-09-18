@@ -1,122 +1,111 @@
 {
+  "$schema": "https://raw.githubusercontent.com/firebase/firebase-blueprint-schema/main/schema.json",
   "entities": {
-    "User": {
-      "title": "User",
-      "description": "User profile with financial balances, investments, bonds, and referral details",
-      "type": "object",
-      "properties": {
-        "phone": { "type": "string", "maxLength": 30 },
-        "fullName": { "type": "string", "maxLength": 100 },
-        "password": { "type": "string", "maxLength": 100 },
+    "UserProfile": {
+      "collection": "users",
+      "fields": {
+        "uid": { "type": "string" },
+        "fullName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin", "agent"] },
         "balance": { "type": "number" },
-        "totalDeposited": { "type": "number" },
-        "totalWithdrawn": { "type": "number" },
-        "totalInvested": { "type": "number" },
-        "commission": { "type": "number" },
-        "refCount": { "type": "number" },
-        "referrerId": { "type": "string", "maxLength": 50 },
-        "activePlanIndex": { "type": "number" },
-        "planStartDate": { "type": "string", "maxLength": 30 },
-        "status": { "type": "string", "enum": ["active", "suspended"] },
-        "createdAt": { "type": "string", "maxLength": 50 },
-        "lastClaimDate": { "type": "object" },
-        "lastClaimTimestamp": { "type": "object" },
-        "investments": { "type": "array" },
-        "bonds": { "type": "array" }
-      },
-      "required": ["phone", "fullName", "balance"]
+        "depositBalance": { "type": "number" },
+        "totalEarnings": { "type": "number" },
+        "referralCode": { "type": "string" },
+        "referredBy": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "suspended", "pending"] }
+      }
     },
-    "RequestItem": {
-      "title": "RequestItem",
-      "description": "Deposit or withdrawal request from a user awaiting or finished admin review",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "maxLength": 100 },
-        "userId": { "type": "string", "maxLength": 50 },
-        "userName": { "type": "string", "maxLength": 100 },
-        "userPhone": { "type": "string", "maxLength": 30 },
-        "type": { "type": "string", "enum": ["deposit", "withdraw"] },
-        "amount": { "type": "number" },
-        "method": { "type": "string", "enum": ["bKash", "Nagad", "Rocket"] },
-        "senderNumber": { "type": "string", "maxLength": 30 },
-        "trxId": { "type": "string", "maxLength": 100 },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "date": { "type": "string", "maxLength": 50 },
-        "timestamp": { "type": "number" },
-        "rejectReason": { "type": "string", "maxLength": 255 },
-        "approvedAt": { "type": "string", "maxLength": 50 }
-      },
-      "required": ["id", "userId", "type", "amount", "method", "status"]
+    "Investment": {
+      "collection": "investments",
+      "fields": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "planId": { "type": "string" },
+        "planName": { "type": "string" },
+        "investedAmount": { "type": "number" },
+        "dailyROI": { "type": "number" },
+        "totalROI": { "type": "number" },
+        "durationDays": { "type": "number" },
+        "claimedDays": { "type": "number" },
+        "lastClaimedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed", "cancelled"] },
+        "createdAt": { "type": "string" }
+      }
     },
     "Transaction": {
-      "title": "Transaction",
-      "description": "Financial ledger record of user investments, earnings, deposits, withdrawals, and bonds",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "maxLength": 100 },
-        "userId": { "type": "string", "maxLength": 50 },
-        "type": { "type": "string", "maxLength": 50 },
-        "title": { "type": "string", "maxLength": 200 },
-        "titleBn": { "type": "string", "maxLength": 200 },
+      "collection": "transactions",
+      "fields": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["deposit", "withdrawal", "roi_claim", "referral_bonus", "prize_bond"] },
         "amount": { "type": "number" },
-        "status": { "type": "string", "maxLength": 50 },
-        "date": { "type": "string", "maxLength": 50 },
-        "timestamp": { "type": "number" },
-        "method": { "type": "string", "maxLength": 50 },
-        "trxId": { "type": "string", "maxLength": 100 }
-      },
-      "required": ["id", "userId", "type", "amount", "status", "date"]
+        "method": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "completed"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "PrizeBond": {
+      "collection": "prize_bonds",
+      "fields": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "bondNumber": { "type": "string" },
+        "series": { "type": "string" },
+        "drawDate": { "type": "string" },
+        "prizeWon": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "won", "expired"] },
+        "purchasedAt": { "type": "string" }
+      }
     },
     "SupportMessage": {
-      "title": "SupportMessage",
-      "description": "Live support chat conversation messages between user and support/admin",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "maxLength": 100 },
-        "userId": { "type": "string", "maxLength": 50 },
-        "sender": { "type": "string", "enum": ["user", "bot", "admin"] },
-        "text": { "type": "string", "maxLength": 1000 },
-        "timestamp": { "type": "string", "maxLength": 50 }
-      },
-      "required": ["id", "sender", "text"]
-    },
-    "AdminSettings": {
-      "title": "AdminSettings",
-      "description": "Platform global configuration and financial gateway details",
-      "type": "object",
-      "properties": {
-        "bKashNumber": { "type": "string", "maxLength": 30 },
-        "nagadNumber": { "type": "string", "maxLength": 30 },
-        "rocketNumber": { "type": "string", "maxLength": 30 },
-        "minDeposit": { "type": "number" },
-        "minWithdraw": { "type": "number" },
-        "telegramLink": { "type": "string", "maxLength": 255 },
-        "whatsappNumber": { "type": "string", "maxLength": 30 },
-        "noticeText": { "type": "string", "maxLength": 500 },
-        "noticeEnabled": { "type": "boolean" }
+      "collection": "supportMessages",
+      "fields": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "sender": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "status": { "type": "string" }
       }
-    }
-  },
-  "firestore": {
-    "/users/{userId}": {
-      "schema": { "$ref": "User" },
-      "description": "User account document stored under their user ID / phone"
     },
-    "/requests/{requestId}": {
-      "schema": { "$ref": "RequestItem" },
-      "description": "Deposit and withdrawal requests"
+    "MarketingMember": {
+      "collection": "marketingTeam",
+      "fields": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "assignedAgents": { "type": "array" },
+        "status": { "type": "string" }
+      }
     },
-    "/transactions/{transactionId}": {
-      "schema": { "$ref": "Transaction" },
-      "description": "Financial transaction ledger records"
+    "UserRequest": {
+      "collection": "requests",
+      "fields": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "details": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
     },
-    "/supportMessages/{messageId}": {
-      "schema": { "$ref": "SupportMessage" },
-      "description": "Customer support and inquiry messages"
-    },
-    "/settings/{settingId}": {
-      "schema": { "$ref": "AdminSettings" },
-      "description": "Platform settings and payment gateway mobile numbers"
+    "AuditLedger": {
+      "collection": "audit_ledger",
+      "fields": {
+        "blockIndex": { "type": "number" },
+        "timestamp": { "type": "string" },
+        "action": { "type": "string" },
+        "previousHash": { "type": "string" },
+        "hash": { "type": "string" },
+        "details": { "type": "string" }
+      }
     }
   }
 }

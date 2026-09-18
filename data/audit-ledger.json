@@ -1,0 +1,19 @@
+[
+  {
+    "id": "LEDGER-BLOCK-0-GENESIS",
+    "blockIndex": 0,
+    "timestamp": 1726200000000,
+    "isoDate": "2024-09-13T04:00:00.000Z",
+    "userPhone": "SYSTEM",
+    "userName": "RJ TRUST Genesis Vault",
+    "type": "GENESIS_INITIALIZATION",
+    "amount": 0,
+    "fee": 0,
+    "netDelta": 0,
+    "referenceId": "GENESIS-VAULT",
+    "notes": "Cryptographic Root of RJ TRUST Server-Authoritative Balance Ledger",
+    "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "hash": "7617dbb88d9a9c691fa7f45632a1e30bf22390fde01ced20874ee36f5efd6032",
+    "signature": "2203cdc7bd7fa5a9e161299b39a4e9bcf8ed3141bf5f86c6675645d498bea45c"
+  }
+]

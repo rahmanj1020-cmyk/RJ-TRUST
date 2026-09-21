@@ -1540,7 +1540,7 @@ WhatsApp: **01410809337**`;
   app.get('/api/finance/ledger/chain', (req: Request, res: Response): void => {
     try {
       const limit = Math.min(200, Math.max(1, parseInt((req.query.limit as string) || '50', 10)));
-      const userPhone = req.query.userPhone ? String(req.query.userPhone).trim() : null;
+      const userPhone = req.query.userPhone ? sanitizeInput(String(req.query.userPhone), 100) : null;
 
       let entries = [...auditLedgerChain];
       if (userPhone) {

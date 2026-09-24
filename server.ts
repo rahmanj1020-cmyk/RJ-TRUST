@@ -1491,9 +1491,22 @@ WhatsApp: **01410809337**`;
 
   // --- CRYPTOGRAPHIC AUDIT LEDGER ENDPOINTS ---
 
-  // Append a financial transaction block to the tamper-proof ledger
+  // Append a financial transaction block to the tamper-proof ledger (Requires active admin session)
   app.post('/api/finance/ledger/record', (req: Request, res: Response): void => {
     try {
+      const sessionToken = (req.headers['x-admin-session'] as string) || req.body?.sessionToken;
+      if (!sessionToken || typeof sessionToken !== 'string') {
+        res.status(401).json({ success: false, message: 'Unauthorized: Admin session token required' });
+        return;
+      }
+
+      const session = activeAdminSessions.get(sessionToken);
+      if (!session || Date.now() > session.expiresAt) {
+        if (session) activeAdminSessions.delete(sessionToken);
+        res.status(401).json({ success: false, message: 'Unauthorized: Admin session expired or invalid' });
+        return;
+      }
+
       const {
         userPhone,
         userName,

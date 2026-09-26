@@ -430,6 +430,17 @@ let currentServerAdminPw = process.env.ADMIN_PASSWORD || 'admin1234';
 const activeAdminSessions = new Map<string, { adminId: string; expiresAt: number }>();
 const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
+function isValidAdminSession(token?: string): boolean {
+  if (!token || typeof token !== 'string') return false;
+  const session = activeAdminSessions.get(token);
+  if (!session) return false;
+  if (Date.now() > session.expiresAt) {
+    activeAdminSessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
 // Setup nodemailer transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -1494,6 +1505,20 @@ WhatsApp: **01410809337**`;
   // Append a financial transaction block to the tamper-proof ledger
   app.post('/api/finance/ledger/record', (req: Request, res: Response): void => {
     try {
+      // Security: Require valid admin session to modify audit ledger
+      const sessionToken =
+        (req.headers['x-admin-session'] as string) ||
+        (req.headers['authorization']?.startsWith('Bearer ') ? req.headers['authorization'].slice(7) : undefined) ||
+        req.body?.sessionToken;
+
+      if (!isValidAdminSession(sessionToken)) {
+        res.status(401).json({
+          success: false,
+          message: 'Unauthorized: Valid admin authentication required to record audit ledger entries',
+        });
+        return;
+      }
+
       const {
         userPhone,
         userName,

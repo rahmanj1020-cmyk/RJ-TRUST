@@ -59,7 +59,8 @@ export interface AuditLedgerBlock {
   signature: string;
 }
 
-const SERVER_LEDGER_SECRET = process.env.LEDGER_SECRET || 'RJ_TRUST_LEDGER_CHAIN_HMAC_SECRET_2026_x#9';
+// SECURITY: Generate dynamic random secret if LEDGER_SECRET env var is missing to avoid hardcoded HMAC secret vulnerabilities
+const SERVER_LEDGER_SECRET = process.env.LEDGER_SECRET || crypto.randomBytes(32).toString('hex');
 const LEDGER_STORAGE_FILE = path.join(process.cwd(), 'data', 'audit-ledger.json');
 const GENESIS_PREV_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 

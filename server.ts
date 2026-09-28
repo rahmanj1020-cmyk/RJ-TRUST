@@ -430,6 +430,16 @@ let currentServerAdminPw = process.env.ADMIN_PASSWORD || 'admin1234';
 const activeAdminSessions = new Map<string, { adminId: string; expiresAt: number }>();
 const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
+function isValidAdminSession(token?: string): boolean {
+  if (!token || typeof token !== 'string') return false;
+  const session = activeAdminSessions.get(token);
+  if (!session || Date.now() > session.expiresAt) {
+    if (session) activeAdminSessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
 // Setup nodemailer transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -1491,9 +1501,19 @@ WhatsApp: **01410809337**`;
 
   // --- CRYPTOGRAPHIC AUDIT LEDGER ENDPOINTS ---
 
-  // Append a financial transaction block to the tamper-proof ledger
+  // Append a financial transaction block to the tamper-proof ledger (Admin Restricted)
   app.post('/api/finance/ledger/record', (req: Request, res: Response): void => {
     try {
+      const authHeader = req.headers.authorization;
+      const tokenFromHeader = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+      const sessionToken = tokenFromHeader || req.body?.sessionToken;
+
+      // Security check: require valid admin session token to write blocks directly to ledger
+      if (!isValidAdminSession(sessionToken)) {
+        res.status(401).json({ success: false, message: 'Unauthorized: Valid admin session required' });
+        return;
+      }
+
       const {
         userPhone,
         userName,

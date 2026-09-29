@@ -1491,10 +1491,11 @@ WhatsApp: **01410809337**`;
 
   // --- CRYPTOGRAPHIC AUDIT LEDGER ENDPOINTS ---
 
-  // Append a financial transaction block to the tamper-proof ledger
+  // Append a financial transaction block to the tamper-proof ledger (Requires Admin Session)
   app.post('/api/finance/ledger/record', (req: Request, res: Response): void => {
     try {
       const {
+        sessionToken,
         userPhone,
         userName,
         type,
@@ -1506,6 +1507,21 @@ WhatsApp: **01410809337**`;
         referenceId,
         notes,
       } = req.body || {};
+
+      const authHeader = req.headers.authorization;
+      const token = sessionToken || (authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null);
+
+      if (!token || typeof token !== 'string') {
+        res.status(401).json({ success: false, message: 'Unauthorized: Admin session token required' });
+        return;
+      }
+
+      const session = activeAdminSessions.get(token);
+      if (!session || Date.now() > session.expiresAt) {
+        if (session) activeAdminSessions.delete(token);
+        res.status(401).json({ success: false, message: 'Unauthorized: Invalid or expired admin session token' });
+        return;
+      }
 
       if (!userPhone || !type) {
         res.status(400).json({ success: false, message: 'userPhone and type are required' });
